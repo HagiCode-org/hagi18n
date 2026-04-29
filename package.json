@@ -2,6 +2,7 @@
   "name": "@hagicode/hagi18n",
   "version": "0.1.0",
   "description": "Scoped npm package foundation for HagiCode internationalization tooling.",
+  "license": "MIT",
   "homepage": "https://github.com/HagiCode-org/hagi18n#readme",
   "bugs": {
     "url": "https://github.com/HagiCode-org/hagi18n/issues"
