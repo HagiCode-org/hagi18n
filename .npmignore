@@ -1,0 +1,5 @@
+src/
+coverage/
+.tmp/
+.vitest-temp/
+*.test.ts
