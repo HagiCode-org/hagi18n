@@ -19,15 +19,41 @@ if (!fs.existsSync(resolvedBinPath)) {
   throw new Error(`Missing built CLI entrypoint: ${binPath}`);
 }
 
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-const result = spawnSync(npmCommand, ["pack", "--dry-run", "--json"], {
+function getNpmInvocation() {
+  const npmExecPath = process.env.npm_execpath;
+
+  if (npmExecPath) {
+    return {
+      command: process.execPath,
+      args: [npmExecPath, "pack", "--dry-run", "--json"]
+    };
+  }
+
+  return {
+    command: process.platform === "win32" ? "npm.cmd" : "npm",
+    args: ["pack", "--dry-run", "--json"]
+  };
+}
+
+const npmInvocation = getNpmInvocation();
+const result = spawnSync(npmInvocation.command, npmInvocation.args, {
   cwd: repoRoot,
   encoding: "utf8"
 });
 
 if (result.status !== 0) {
+  const details = [
+    `npm pack --dry-run failed with exit code ${result.status}.`,
+    result.signal ? `Signal: ${result.signal}` : null,
+    result.error ? `Error: ${result.error.message}` : null,
+    result.stderr?.trim() ? `stderr:\n${result.stderr.trim()}` : null,
+    result.stdout?.trim() ? `stdout:\n${result.stdout.trim()}` : null
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   throw new Error(
-    `npm pack --dry-run failed with exit code ${result.status}.\n${result.stderr ?? ""}`.trim()
+    details
   );
 }
 
