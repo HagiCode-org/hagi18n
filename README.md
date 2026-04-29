@@ -1,18 +1,20 @@
 # Hagi18n
 
-`@hagicode/hagi18n` is the scoped npm package foundation for future HagiCode internationalization tooling. This repository currently keeps behavior intentionally small: it exposes package metadata, a baseline runtime-info API, and an executable CLI placeholder that can be built, tested, and published safely.
+`@hagicode/hagi18n` is a reusable YAML locale maintenance toolkit for HagiCode projects. It was abstracted from the mature Web workflow in `repos/web/buildTools`, but it runs as an independent package and CLI.
 
-This initial scaffold is derived from the `hagiscript` package foundation. i18n-specific implementation will be added later.
+It supports:
 
-## Installation Assumptions
+- Auditing locale trees for missing files, extra files, missing keys, extra keys, placeholder mismatches, parse errors, and protected tokens.
+- Repository hygiene checks for legacy locale references.
+- Safe `sync` and `prune` mutations with dry-run defaults.
+- Optional `hagi18n.yaml` defaults so each project can define its own locale layout.
 
-- Node.js 20 or newer is required.
-- npm is the package manager for this standalone repository.
-- The npm package name is `@hagicode/hagi18n`.
+## Requirements
 
-## Usage
+- Node.js 20 or newer
+- npm for package management
 
-Install the package from npm:
+## Installation
 
 ```bash
 npm install @hagicode/hagi18n
@@ -20,60 +22,163 @@ npm install @hagicode/hagi18n
 
 The installed CLI command is `hagi18n`.
 
-Run the CLI locally during development:
+## YAML Locale Layout
 
-```bash
-npm run dev -- --help
-npm run dev -- info
+The package expects a locale tree like this:
+
+```text
+src/locales/
+  en-US/
+    common.yml
+    features/editor.yml
+  zh-CN/
+    common.yml
+    features/editor.yml
 ```
 
-After building, run the compiled CLI:
+Supported files:
 
-```bash
-npm run build
-node dist/cli.js --version
-node dist/cli.js info
+- `.yml`
+- `.yaml`
+
+Supported values:
+
+- top-level mapping documents
+- nested objects
+- arrays
+- scalar translation leaves
+- `{{placeholder}}` interpolation tokens
+
+Common locale aliases such as `en`, `en-us`, `zh`, and `zh-cn` are accepted and normalized to canonical locale names like `en-US` and `zh-CN`.
+
+## Configuration
+
+By default, the CLI looks for `hagi18n.yaml` in the current working directory. You can also pass `--config <path>`.
+
+Example:
+
+```yaml
+localesRoot: src/locales
+repoRoot: .
+baseLocale: en-US
+targetLocales:
+  - zh-CN
+doctor:
+  excludedDirectories:
+    - .git
+    - dist
+    - node_modules
+  textFileExtensions:
+    - .ts
+    - .tsx
+    - .js
+    - .md
+  allowlist:
+    legacy-language-change-call:
+      - src/legacy-test.ts
 ```
 
-Use the library API from ESM consumers:
+Precedence is:
+
+1. CLI flags or direct API options
+2. `hagi18n.yaml`
+3. package defaults
+
+Relative paths in `hagi18n.yaml` are resolved from the config file directory.
+
+## CLI Commands
+
+```bash
+hagi18n info
+hagi18n audit
+hagi18n report
+hagi18n doctor
+hagi18n sync
+hagi18n prune
+```
+
+Examples:
+
+```bash
+hagi18n audit --locales-root src/locales --base-locale en-US
+hagi18n audit --config hagi18n.yaml --json
+hagi18n report --config hagi18n.yaml
+hagi18n doctor --config hagi18n.yaml
+hagi18n sync --from en-US --to zh-CN
+hagi18n sync --from en-US --to zh-CN --write
+hagi18n prune --from en-US --to zh-CN --write
+```
+
+`sync` and `prune` are dry-run by default. Pass `--write` to mutate files.
+
+## Option Reference
+
+| Option | Commands | Description |
+| --- | --- | --- |
+| `--config <path>` | all except `info` | Load defaults from a config file |
+| `--locales-root <path>` | audit, report, doctor, sync, prune | Locale root directory |
+| `--base-locale <locale>` | audit, report, doctor | Base locale for comparison |
+| `--from <locale>` | sync, prune | Base locale for mutation commands |
+| `--locale <locale>` | audit, report, doctor | Limit output to one or more locales |
+| `--to <locale>` | sync, prune | Limit mutations to one or more target locales |
+| `--repo-root <path>` | doctor | Repository root for repository scanning |
+| `--json` | audit, doctor, sync, prune | Print JSON instead of text |
+| `--dry-run` | sync, prune | Preview mutations without writing files |
+| `--write` | sync, prune | Apply mutations to disk |
+
+## JSON Output and Exit Codes
+
+- `audit` returns exit code `0` when clean and `1` when issues exist.
+- `report` runs the same audit and always prints JSON.
+- `doctor` returns exit code `1` when audit issues or repository scan issues exist.
+- `sync` and `prune` return exit code `1` only for parse or processing errors. Planned or applied mutations are reported in the summary.
+- Command parsing failures return exit code `1` from the current `commander` integration.
+
+The JSON payload is the same structured summary returned by the TypeScript API.
+
+## TypeScript API
 
 ```ts
-import { createRuntimeInfo, getPackageMetadata } from "@hagicode/hagi18n";
+import {
+  auditLocaleTree,
+  doctorLocaleTree,
+  formatAuditSummary,
+  pruneLocaleTree,
+  resolveHagi18nConfig,
+  syncLocaleTree
+} from "@hagicode/hagi18n";
 
-console.log(getPackageMetadata());
-console.log(createRuntimeInfo());
+const audit = await auditLocaleTree({
+  localesRoot: "src/locales",
+  baseLocale: "en-US"
+});
+
+console.log(formatAuditSummary(audit));
 ```
 
-## Development Commands
+Main exports include:
 
-Run all commands from `repos/hagi18n/`:
+- configuration helpers such as `findHagi18nConfigPath`, `loadHagi18nConfig`, and `resolveHagi18nConfig`
+- locale helpers such as `normalizeLocaleName`, `listLocaleDirectories`, and `readYamlLocaleFile`
+- workflows such as `auditLocaleTree`, `doctorLocaleTree`, `syncLocaleTree`, and `pruneLocaleTree`
+- text formatters such as `formatAuditSummary`, `formatDoctorSummary`, and `formatMutationSummary`
+- package metadata helpers such as `getPackageMetadata` and `createRuntimeInfo`
+
+## Web Reference Mapping
+
+This package preserves the maintenance model from the Web repository:
+
+- `repos/web/buildTools/lib/i18nLocaleToolkit.mjs` -> `src/locale-toolkit.ts`
+- `repos/web/buildTools/i18n-locale-cli.mjs` -> `src/cli.ts`
+
+The Web project remains the behavior reference, but it does not need runtime changes to use this package later.
+
+## Development
+
+Run commands from `repos/hagi18n/`:
 
 ```bash
 npm install
-npm run lint
-npm run format:check
 npm test
 npm run build
-npm run pack:check
 ```
-
-Additional commands:
-
-```bash
-npm run clean
-npm run format
-npm run test:watch
-```
-
-## Build Outputs
-
-`npm run build` compiles TypeScript into `dist/`. Expected entry points include:
-
-- `dist/index.js`
-- `dist/index.d.ts`
-- `dist/index.js.map`
-- `dist/cli.js`
-- `dist/cli.d.ts`
-- `dist/cli.js.map`
-
-The package `exports` field points consumers to `dist/index.js` and `dist/index.d.ts`. The published package name is `@hagicode/hagi18n`, and the `bin.hagi18n` entry points to `dist/cli.js`.
