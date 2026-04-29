@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  auditLocaleTree,
   createRuntimeInfo,
+  formatAuditSummary,
   getPackageMetadata,
+  resolveHagi18nConfig,
   packageName,
   packageVersion
 } from "../index.js";
@@ -30,5 +33,11 @@ describe("hagi18n public API", () => {
       version: packageJson.version,
       status: "foundation"
     });
+  });
+
+  it("exports the new toolkit and config helpers", () => {
+    expect(typeof auditLocaleTree).toBe("function");
+    expect(typeof resolveHagi18nConfig).toBe("function");
+    expect(typeof formatAuditSummary).toBe("function");
   });
 });
