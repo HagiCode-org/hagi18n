@@ -1,0 +1,7 @@
+interface:
+  display_name: "Hagi18n"
+  short_description: "Operate and modify the HagiCode YAML locale maintenance toolkit."
+  default_prompt: "Use $hagi18n to inspect, run, configure, or update the locale maintenance toolkit in repos/hagi18n."
+
+policy:
+  allow_implicit_invocation: true
