@@ -1,0 +1,158 @@
+name: Publish npm
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.event_name }}-${{ github.ref || github.event.release.tag_name || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish-dev:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify npm publish prerequisites
+        run: npm run publish:check-prereqs
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build package
+        run: npm run build
+
+      - name: Resolve development version
+        id: version
+        run: |
+          version="$(npm run --silent publish:prepare-dev-version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Resolved dev version: $version"
+
+      - name: Stamp development package version
+        env:
+          DEV_VERSION: ${{ steps.version.outputs.version }}
+        run: npm version --no-git-tag-version "$DEV_VERSION"
+
+      - name: Verify packed files
+        run: npm run pack:check
+
+      - name: Publish to npm dev dist-tag
+        run: npm publish --tag dev --access public
+
+      - name: Summarize publish result
+        if: always()
+        env:
+          RESOLVED_VERSION: ${{ steps.version.outputs.version || 'n/a' }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## npm dev publish"
+            echo
+            echo "- Version: $RESOLVED_VERSION"
+            echo "- Dist-tag: dev"
+            echo "- Registry: npmjs.org"
+
+            if [ "$JOB_STATUS" = "success" ]; then
+              echo "- Result: published with provenance enabled."
+            else
+              echo "- Result: failed before publish completed. Check the failed gate above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-release:
+    if: github.event_name == 'release' && github.event.action == 'published' && !github.event.release.prerelease && !github.event.release.draft
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify release tag matches package version
+        id: version
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(npm run --silent publish:verify-release -- "$RELEASE_TAG_NAME")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Validated release version: $version"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp stable package version
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: npm version --no-git-tag-version "$RELEASE_VERSION"
+
+      - name: Verify npm publish prerequisites
+        run: npm run publish:check-prereqs
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build package
+        run: npm run build
+
+      - name: Verify packed files
+        run: npm run pack:check
+
+      - name: Publish to npm latest dist-tag
+        run: npm publish --tag latest --access public
+
+      - name: Summarize publish result
+        if: always()
+        env:
+          RESOLVED_VERSION: ${{ steps.version.outputs.version || 'n/a' }}
+          JOB_STATUS: ${{ job.status }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          {
+            echo "## npm stable publish"
+            echo
+            echo "- Version: $RESOLVED_VERSION"
+            echo "- Dist-tag: latest"
+            echo "- Release: $RELEASE_URL"
+            echo "- Tag: $TAG_NAME"
+            echo "- Registry: npmjs.org"
+
+            if [ "$JOB_STATUS" = "success" ]; then
+              echo "- Result: published with provenance enabled."
+            else
+              echo "- Result: failed before publish completed. Check the failed gate above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
