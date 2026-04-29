@@ -1,5 +1,9 @@
 # Hagi18n
 
+[![npm version](https://img.shields.io/npm/v/%40hagicode%2Fhagi18n?logo=npm&color=cb3837)](https://www.npmjs.com/package/@hagicode/hagi18n)
+[![npm downloads](https://img.shields.io/npm/dm/%40hagicode%2Fhagi18n?logo=npm&color=2d8cf0)](https://www.npmjs.com/package/@hagicode/hagi18n)
+[![license](https://img.shields.io/badge/license-MIT-ffd43b)](./LICENSE)
+
 `@hagicode/hagi18n` is a reusable YAML locale maintenance toolkit for HagiCode projects. It was abstracted from the mature Web workflow in `repos/web/buildTools`, but it runs as an independent package and CLI.
 
 It supports:
@@ -195,3 +199,7 @@ npm install
 npm test
 npm run build
 ```
+
+## License
+
+MIT. See [LICENSE](./LICENSE).
