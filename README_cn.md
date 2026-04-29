@@ -9,6 +9,19 @@
 - 安全的 `sync` / `prune` 变更流程，默认 dry-run
 - 可选的 `hagi18n.yaml` 项目配置，适配不同仓库目录结构
 
+## AI Skill
+
+仓库现在内置了一套本地 Codex 风格 skill，位置在 [`skills/hagi18n/SKILL.md`](skills/hagi18n/SKILL.md)。
+
+当 AI 代理需要完成以下任务时，可以直接使用这套 skill：
+
+- 执行或解释 `hagi18n audit`、`doctor`、`sync`、`prune`
+- 新增或审查 `hagi18n.yaml`
+- 检查或修改 `repos/hagi18n` 内源码
+- 在消费方仓库中验证语言包维护流程
+
+skill 内还附带了命令使用、配置结构和包开发流程的拆分参考文档。
+
 ## 前提
 
 - Node.js 20 或更高版本

@@ -9,6 +9,19 @@ It supports:
 - Safe `sync` and `prune` mutations with dry-run defaults.
 - Optional `hagi18n.yaml` defaults so each project can define its own locale layout.
 
+## AI Skill
+
+This repository now ships a local Codex-style skill at [`skills/hagi18n/SKILL.md`](skills/hagi18n/SKILL.md).
+
+Use it when an AI agent needs to:
+
+- run or explain `hagi18n audit`, `doctor`, `sync`, or `prune`
+- add or review a `hagi18n.yaml` file
+- inspect or modify the source in `repos/hagi18n`
+- validate locale maintenance workflows against a consumer repository
+
+The skill includes focused references for command usage, configuration, and package development.
+
 ## Requirements
 
 - Node.js 20 or newer
