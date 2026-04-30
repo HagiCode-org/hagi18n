@@ -142,16 +142,129 @@ describe("locale toolkit", () => {
 
   it("reports clean locale trees without issues", async () => {
     const project = await createTempProject("hagi18n-toolkit-clean-");
-    const yamlText = `greetings:
+    const baseYamlText = `greetings:
   hello: "Hello {{name}}"
 `;
-    await writeLocaleFile(project.localesRoot, "en-US", "common.yml", yamlText);
-    await writeLocaleFile(project.localesRoot, "zh-CN", "common.yml", yamlText);
+    const targetYamlText = `greetings:
+  hello: "你好 {{name}}"
+`;
+    await writeLocaleFile(project.localesRoot, "en-US", "common.yml", baseYamlText);
+    await writeLocaleFile(project.localesRoot, "zh-CN", "common.yml", targetYamlText);
 
     const summary = await auditLocaleTree({ localesRoot: project.localesRoot });
 
     expect(summary.hasIssues).toBe(false);
     expect(summary.results.every((result) => result.parseErrors.length === 0)).toBe(true);
+  });
+
+  it("supports multiple baselines, excludes them from default targets, and reports duplicate matches", async () => {
+    const project = await createTempProject("hagi18n-toolkit-multi-baseline-");
+    await writeLocaleFile(
+      project.localesRoot,
+      "en-US",
+      "common.yml",
+      `title: "Hello"
+hero:
+  cta: "Start"
+`
+    );
+    await writeLocaleFile(
+      project.localesRoot,
+      "ja-JP",
+      "common.yml",
+      `title: "こんにちは"
+hero:
+  cta: "Start"
+`
+    );
+    await writeLocaleFile(
+      project.localesRoot,
+      "fr-FR",
+      "common.yml",
+      `title: "こんにちは"
+hero:
+  cta: "Start"
+`
+    );
+
+    const summary = await auditLocaleTree({
+      localesRoot: project.localesRoot,
+      auditBaseLocales: ["en", "ja-JP", "en-US"]
+    });
+
+    expect(summary.baseLocale).toBe("en-US");
+    expect(summary.baselineLocales).toEqual(["en-US", "ja-JP"]);
+    expect(summary.locales).toEqual(["fr-FR"]);
+    expect(summary.hasIssues).toBe(true);
+    expect(summary.results[0].baselineValueMatches).toEqual([
+      {
+        file: "common.yml",
+        path: "title",
+        baselineLocales: ["ja-JP"],
+        value: "こんにちは"
+      },
+      {
+        file: "common.yml",
+        path: "hero.cta",
+        baselineLocales: ["en-US", "ja-JP"],
+        value: "Start"
+      }
+    ]);
+  });
+
+  it("fails fast when baseline exclusion leaves no default targets", async () => {
+    const project = await createTempProject("hagi18n-toolkit-no-targets-");
+    await writeLocaleFile(project.localesRoot, "en-US", "common.yml", 'title: "Hello"\n');
+    await writeLocaleFile(project.localesRoot, "ja-JP", "common.yml", 'title: "こんにちは"\n');
+
+    await expect(
+      auditLocaleTree({
+        localesRoot: project.localesRoot,
+        auditBaseLocales: ["en-US", "ja-JP"]
+      })
+    ).rejects.toThrow("No non-baseline target locales remain after excluding baseline locales");
+  });
+
+  it("keeps structural parity checks on the first resolved baseline with multiple baselines", async () => {
+    const project = await createTempProject("hagi18n-toolkit-structural-baseline-");
+    await writeLocaleFile(
+      project.localesRoot,
+      "en-US",
+      "common.yml",
+      `title: "Hello"
+hero:
+  cta: "Start"
+`
+    );
+    await writeLocaleFile(
+      project.localesRoot,
+      "ja-JP",
+      "common.yml",
+      `title: "こんにちは"
+hero:
+  cta: "開始"
+  subtitle: "追加"
+`
+    );
+    await writeLocaleFile(
+      project.localesRoot,
+      "zh-CN",
+      "common.yml",
+      `title: "你好"
+`
+    );
+
+    const summary = await auditLocaleTree({
+      localesRoot: project.localesRoot,
+      auditBaseLocales: ["en-US", "ja-JP"],
+      targetLocales: ["zh-CN"]
+    });
+
+    expect(summary.baseLocale).toBe("en-US");
+    expect(summary.results[0].missingKeys).toEqual([
+      { file: "common.yml", path: "hero.cta" }
+    ]);
+    expect(summary.results[0].extraKeys).toEqual([]);
   });
 
   it("syncs missing files and keys while preserving target translations", async () => {
@@ -309,6 +422,7 @@ doctor:
     const summary = await doctorLocaleTree({ cwd: project.root });
 
     expect(summary.localesRoot).toBe(path.join(project.root, "app/locales"));
+    expect(summary.baselineLocales).toEqual(["en-US"]);
     expect(summary.audit.hasIssues).toBe(false);
     expect(summary.hasIssues).toBe(true);
     expect(summary.legacyReferenceIssues).toEqual([

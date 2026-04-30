@@ -21,7 +21,7 @@ import {
 interface CliCommandOptions {
   config?: string;
   localesRoot?: string;
-  baseLocale?: string;
+  baseLocale?: string | string[];
   from?: string;
   locale?: string[];
   to?: string[];
@@ -41,14 +41,32 @@ function collectValues(value: string, previous: string[] = []): string[] {
   return previous;
 }
 
-function toToolkitOptions(options: CliCommandOptions) {
+function toLocaleArray(value: string | string[] | undefined): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
+function getPrimaryBaseLocale(options: CliCommandOptions): string | undefined {
+  return toLocaleArray(options.baseLocale)?.[0] ?? options.from;
+}
+
+function toToolkitOptions(
+  options: CliCommandOptions,
+  { includeAuditBaseLocales = false }: { includeAuditBaseLocales?: boolean } = {}
+) {
   const targetLocales = [...(options.locale ?? []), ...(options.to ?? [])];
 
   return {
     configPath: options.config,
     localesRoot: options.localesRoot,
     repoRoot: options.repoRoot,
-    baseLocale: options.baseLocale ?? options.from,
+    baseLocale: getPrimaryBaseLocale(options),
+    auditBaseLocales: includeAuditBaseLocales
+      ? toLocaleArray(options.baseLocale)
+      : undefined,
     targetLocales: targetLocales.length > 0 ? targetLocales : undefined
   };
 }
@@ -79,14 +97,20 @@ function printSummary(
   process.stdout.write(`${formatter(summary as never)}\n`);
 }
 
-function applySharedOptions(command: Command, { includeRepoRoot = false }: { includeRepoRoot?: boolean } = {}): Command {
+function applySharedOptions(
+  command: Command,
+  {
+    includeRepoRoot = false,
+    auditBaseLocaleMode = "none"
+  }: {
+    includeRepoRoot?: boolean;
+    auditBaseLocaleMode?: "none" | "single" | "repeat";
+  } = {}
+): Command {
   command
     .addOption(new Option("--config <path>", "load defaults from a hagi18n.yaml file"))
     .addOption(
       new Option("--locales-root <path>", "locale root directory")
-    )
-    .addOption(
-      new Option("--base-locale <locale>", "base locale to compare against")
     )
     .addOption(new Option("--from <locale>", "source locale used as the structure baseline"))
     .addOption(
@@ -96,6 +120,21 @@ function applySharedOptions(command: Command, { includeRepoRoot = false }: { inc
       new Option("--to <locale>", "target locale; can be repeated").argParser(collectValues)
     )
     .addOption(new Option("--json", "print machine-readable JSON output"));
+
+  if (auditBaseLocaleMode === "single") {
+    command.addOption(
+      new Option("--base-locale <locale>", "base locale to compare against")
+    );
+  }
+
+  if (auditBaseLocaleMode === "repeat") {
+    command.addOption(
+      new Option(
+        "--base-locale <locale>",
+        "audit baseline locale; can be repeated, first resolved locale stays structural"
+      ).argParser(collectValues)
+    );
+  }
 
   if (includeRepoRoot) {
     command.addOption(new Option("--repo-root <path>", "repository root for doctor scanning"));
@@ -131,44 +170,53 @@ export function createCli(): Command {
   applySharedOptions(
     program
       .command("audit")
-      .description("audit YAML locale files for drift against a base locale")
+      .description("audit YAML locale files for drift against one or more baseline locales")
       .action(async (options: CliCommandOptions) => {
-        const summary = await auditLocaleTree(toToolkitOptions(options));
+        const summary = await auditLocaleTree(
+          toToolkitOptions(options, { includeAuditBaseLocales: true })
+        );
         printSummary(summary, {
           json: options.json,
           formatter: formatAuditSummary
         });
         process.exitCode = summary.hasIssues ? 1 : 0;
       })
+    ,
+    { auditBaseLocaleMode: "repeat" }
   );
 
   applySharedOptions(
     program
       .command("report")
-      .description("run audit and print JSON output")
+      .description("run multi-baseline audit and print JSON output")
       .action(async (options: CliCommandOptions) => {
-        const summary = await auditLocaleTree(toToolkitOptions(options));
+        const summary = await auditLocaleTree(
+          toToolkitOptions(options, { includeAuditBaseLocales: true })
+        );
         printSummary(summary, {
           json: true,
           formatter: formatAuditSummary
         });
         process.exitCode = summary.hasIssues ? 1 : 0;
-      })
+      }),
+    { auditBaseLocaleMode: "repeat" }
   );
 
   applySharedOptions(
     program
       .command("doctor")
-      .description("audit locale drift and scan the repository for legacy locale references")
+      .description("run multi-baseline locale audit and scan the repository for legacy locale references")
       .action(async (options: CliCommandOptions) => {
-        const summary = await doctorLocaleTree(toToolkitOptions(options));
+        const summary = await doctorLocaleTree(
+          toToolkitOptions(options, { includeAuditBaseLocales: true })
+        );
         printSummary(summary, {
           json: options.json,
           formatter: formatDoctorSummary
         });
         process.exitCode = summary.hasIssues ? 1 : 0;
       }),
-    { includeRepoRoot: true }
+    { includeRepoRoot: true, auditBaseLocaleMode: "repeat" }
   );
 
   applyMutationOptions(
@@ -210,9 +258,9 @@ export function createCli(): Command {
     `
 
 Examples:
-  hagi18n audit --locales-root src/locales --base-locale en-US
+  hagi18n audit --locales-root src/locales --base-locale en-US --base-locale ja-JP
   hagi18n report --config hagi18n.yaml
-  hagi18n doctor --repo-root . --locales-root src/locales
+  hagi18n doctor --repo-root . --locales-root src/locales --base-locale en-US --base-locale zh-CN
   hagi18n sync --from en-US --to zh-CN --dry-run
   hagi18n prune --from en-US --to zh-CN --write
 `

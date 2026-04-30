@@ -17,6 +17,7 @@ describe("hagi18n config", () => {
     expect(result.localesRoot).toBe(path.join(project.root, "src", "locales"));
     expect(result.repoRoot).toBe(project.root);
     expect(result.baseLocale).toBe(DEFAULT_BASE_LOCALE);
+    expect(result.auditBaseLocales).toEqual([DEFAULT_BASE_LOCALE]);
     expect(result.targetLocales).toEqual([]);
     expect(result.doctor.excludedDirectories).toContain("node_modules");
   });
@@ -29,6 +30,9 @@ describe("hagi18n config", () => {
       `localesRoot: app/locales
 repoRoot: .
 baseLocale: zh-CN
+auditBaseLocales:
+  - en
+  - zh-cn
 targetLocales:
   - en-US
 doctor:
@@ -44,6 +48,7 @@ doctor:
       localesRoot: "app/locales",
       repoRoot: ".",
       baseLocale: "zh-CN",
+      auditBaseLocales: ["en", "zh-cn"],
       targetLocales: ["en-US"],
       doctor: {
         excludedDirectories: ["custom-dist"],
@@ -77,6 +82,64 @@ targetLocales:
     expect(result.localesRoot).toBe(path.join(project.root, "config/custom-locales"));
     expect(result.repoRoot).toBe(path.join(project.root, "config"));
     expect(result.targetLocales).toEqual(["zh-CN"]);
+  });
+
+  it("falls back to baseLocale when auditBaseLocales is absent", async () => {
+    const project = await createTempProject("hagi18n-config-audit-fallback-");
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `baseLocale: zh-CN
+`
+    );
+
+    const result = await resolveHagi18nConfig({ cwd: project.root });
+
+    expect(result.baseLocale).toBe("zh-CN");
+    expect(result.auditBaseLocales).toEqual(["zh-CN"]);
+  });
+
+  it("normalizes and dedupes auditBaseLocales with cli overrides taking precedence", async () => {
+    const project = await createTempProject("hagi18n-config-audit-precedence-");
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `baseLocale: en-US
+auditBaseLocales:
+  - zh
+  - en
+  - zh-CN
+`
+    );
+
+    const result = await resolveHagi18nConfig({
+      cwd: project.root,
+      auditBaseLocales: ["ja-JP", "en", "ja-jp", "zh"]
+    });
+
+    expect(result.baseLocale).toBe("en-US");
+    expect(result.auditBaseLocales).toEqual(["ja-JP", "en-US", "zh-CN"]);
+  });
+
+  it("uses a cli baseLocale as the audit baseline when no auditBaseLocales override is provided", async () => {
+    const project = await createTempProject("hagi18n-config-cli-base-fallback-");
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `baseLocale: zh-CN
+auditBaseLocales:
+  - zh-CN
+  - ja-JP
+`
+    );
+
+    const result = await resolveHagi18nConfig({
+      cwd: project.root,
+      baseLocale: "en"
+    });
+
+    expect(result.baseLocale).toBe("en-US");
+    expect(result.auditBaseLocales).toEqual(["en-US"]);
   });
 
   it("throws on invalid yaml", async () => {
@@ -129,6 +192,7 @@ doctor:
     expect(result.localesRoot).toBe(path.join(project.root, "cli-locales"));
     expect(result.repoRoot).toBe(path.join(project.root, "cli-root"));
     expect(result.baseLocale).toBe("en-US");
+    expect(result.auditBaseLocales).toEqual(["en-US"]);
     expect(result.targetLocales).toEqual(["ja-JP"]);
     expect(result.doctor.excludedDirectories).toEqual(["vendor"]);
   });

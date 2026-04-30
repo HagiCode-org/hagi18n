@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
+import { normalizeLocaleName } from "./locale-name.js";
 
 export const DEFAULT_BASE_LOCALE = "en-US";
 export const DEFAULT_CONFIG_FILE_NAMES = ["hagi18n.yaml", "hagi18n.yml"] as const;
@@ -42,6 +43,7 @@ export interface Hagi18nConfig {
   localesRoot?: string;
   repoRoot?: string;
   baseLocale?: string;
+  auditBaseLocales?: string[];
   targetLocales?: string[];
   doctor?: Hagi18nDoctorConfig;
 }
@@ -64,6 +66,7 @@ export interface ResolvedHagi18nConfig {
   localesRoot: string;
   repoRoot: string;
   baseLocale: string;
+  auditBaseLocales: string[];
   targetLocales: string[];
   doctor: ResolvedHagi18nDoctorConfig;
 }
@@ -179,6 +182,32 @@ function dedupeStrings(values: readonly string[]): string[] {
   return output;
 }
 
+function normalizeLocaleValue(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return normalizeLocaleName(value) ?? value.trim();
+}
+
+function normalizeLocaleValues(values: readonly string[] | undefined): string[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  const output: string[] = [];
+  for (const value of values) {
+    const normalizedValue = normalizeLocaleName(value) ?? value.trim();
+    if (!normalizedValue || output.includes(normalizedValue)) {
+      continue;
+    }
+
+    output.push(normalizedValue);
+  }
+
+  return output;
+}
+
 function normalizeAllowlist(
   value: unknown,
   fieldName: string
@@ -276,6 +305,10 @@ function parseConfigDocument(
     localesRoot: ensureString(document.localesRoot, "localesRoot"),
     repoRoot: ensureString(document.repoRoot, "repoRoot"),
     baseLocale: ensureString(document.baseLocale, "baseLocale"),
+    auditBaseLocales: ensureStringArray(
+      document.auditBaseLocales,
+      "auditBaseLocales"
+    ),
     targetLocales: ensureStringArray(document.targetLocales, "targetLocales"),
     doctor: parseDoctorConfig(document.doctor)
   };
@@ -380,10 +413,9 @@ function resolveConfigLayer(
   return {
     localesRoot: resolveStringPath(config.localesRoot, baseDirectory),
     repoRoot: resolveStringPath(config.repoRoot, baseDirectory),
-    baseLocale: config.baseLocale?.trim(),
-    targetLocales: config.targetLocales
-      ? dedupeStrings(config.targetLocales)
-      : undefined,
+    baseLocale: normalizeLocaleValue(config.baseLocale),
+    auditBaseLocales: normalizeLocaleValues(config.auditBaseLocales),
+    targetLocales: normalizeLocaleValues(config.targetLocales),
     doctor: {
       excludedDirectories: config.doctor?.excludedDirectories
         ? dedupeStrings(config.doctor.excludedDirectories)
@@ -463,6 +495,7 @@ function createDefaultResolvedConfig(cwd: string): ResolvedHagi18nConfig {
     localesRoot: path.resolve(cwd, "src/locales"),
     repoRoot: cwd,
     baseLocale: DEFAULT_BASE_LOCALE,
+    auditBaseLocales: [DEFAULT_BASE_LOCALE],
     targetLocales: [],
     doctor: {
       excludedDirectories: [...DEFAULT_DOCTOR_EXCLUDED_DIRECTORIES],
@@ -489,6 +522,7 @@ export async function resolveHagi18nConfig(
       localesRoot: options.localesRoot,
       repoRoot: options.repoRoot,
       baseLocale: options.baseLocale,
+      auditBaseLocales: options.auditBaseLocales,
       targetLocales: options.targetLocales,
       doctor: options.doctor
     },
@@ -502,14 +536,24 @@ export async function resolveHagi18nConfig(
     mergeResolvedDoctorConfig(defaults.doctor, fileLayer.doctor),
     overrideLayer.doctor
   );
+  const mergedBaseLocale =
+    overrideLayer.baseLocale ?? fileLayer.baseLocale ?? defaults.baseLocale;
+  const mergedAuditBaseLocales =
+    overrideLayer.auditBaseLocales && overrideLayer.auditBaseLocales.length > 0
+      ? overrideLayer.auditBaseLocales
+      : overrideLayer.baseLocale
+        ? [mergedBaseLocale]
+        : fileLayer.auditBaseLocales && fileLayer.auditBaseLocales.length > 0
+          ? fileLayer.auditBaseLocales
+          : [mergedBaseLocale];
 
   return {
     cwd,
     configPath: loaded.configPath,
     localesRoot: overrideLayer.localesRoot ?? fileLayer.localesRoot ?? defaults.localesRoot,
     repoRoot: overrideLayer.repoRoot ?? fileLayer.repoRoot ?? defaults.repoRoot,
-    baseLocale:
-      overrideLayer.baseLocale ?? fileLayer.baseLocale ?? defaults.baseLocale,
+    baseLocale: mergedBaseLocale,
+    auditBaseLocales: mergedAuditBaseLocales,
     targetLocales:
       overrideLayer.targetLocales ??
       fileLayer.targetLocales ??

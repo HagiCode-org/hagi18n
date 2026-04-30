@@ -22,6 +22,8 @@ export {
   type ResolveHagi18nConfigOptions
 } from "./config.js";
 
+export { normalizeLocaleName } from "./locale-name.js";
+
 export {
   auditHasIssues,
   auditLocaleTree,
@@ -35,11 +37,11 @@ export {
   formatDoctorSummary,
   formatMutationSummary,
   listLocaleDirectories,
-  normalizeLocaleName,
   pruneLocaleTree,
   readYamlLocaleFile,
   syncLocaleTree,
   walkYamlFiles,
+  type AuditBaselineValueMatch,
   type AuditLocaleResult,
   type AuditLocaleTreeSummary,
   type DoctorLocaleTreeSummary,

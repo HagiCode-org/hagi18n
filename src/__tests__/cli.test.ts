@@ -123,6 +123,116 @@ targetLocales:
     stdout.mockRestore();
   });
 
+  it("accepts repeated audit baselines and includes additive JSON fields in report output", async () => {
+    const project = await createTempProject("hagi18n-cli-multi-baseline-");
+    await writeLocaleFile(project.localesRoot, "en-US", "common.yml", 'title: "Hello"\n');
+    await writeLocaleFile(project.localesRoot, "ja-JP", "common.yml", 'title: "こんにちは"\n');
+    await writeLocaleFile(project.localesRoot, "fr-FR", "common.yml", 'title: "こんにちは"\n');
+
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await withCwd(project.root, async () => {
+      await runCli([
+        "node",
+        "hagi18n",
+        "report",
+        "--locales-root",
+        "src/locales",
+        "--base-locale",
+        "en-US",
+        "--base-locale",
+        "ja-JP"
+      ]);
+      expect(process.exitCode).toBe(1);
+    });
+
+    const reportOutput = stdout.mock.calls.map(([value]) => String(value)).join("");
+    expect(JSON.parse(reportOutput)).toMatchObject({
+      baseLocale: "en-US",
+      baselineLocales: ["en-US", "ja-JP"],
+      locales: ["fr-FR"],
+      results: [
+        {
+          locale: "fr-FR",
+          baselineValueMatches: [
+            {
+              file: "common.yml",
+              path: "title",
+              baselineLocales: ["ja-JP"],
+              value: "こんにちは"
+            }
+          ]
+        }
+      ]
+    });
+
+    stdout.mockRestore();
+  });
+
+  it("keeps sync and prune on the single --from baseline contract", async () => {
+    const project = await createTempProject("hagi18n-cli-mutation-baseline-");
+    await writeLocaleFile(project.localesRoot, "en-US", "common.yml", 'title: "Hello"\n');
+    await writeLocaleFile(project.localesRoot, "zh-CN", "common.yml", 'extra: "保留"\n');
+
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    await withCwd(project.root, async () => {
+      await runCli([
+        "node",
+        "hagi18n",
+        "sync",
+        "--locales-root",
+        "src/locales",
+        "--from",
+        "en-US",
+        "--to",
+        "zh-CN",
+        "--json"
+      ]);
+      expect(process.exitCode).toBe(0);
+
+      const syncOutput = stdout.mock.calls.map(([value]) => String(value)).join("");
+      expect(JSON.parse(syncOutput)).toMatchObject({
+        command: "sync",
+        baseLocale: "en-US",
+        targetLocales: ["zh-CN"]
+      });
+
+      stdout.mockClear();
+
+      await runCli([
+        "node",
+        "hagi18n",
+        "sync",
+        "--locales-root",
+        "src/locales",
+        "--from",
+        "en-US",
+        "--base-locale",
+        "ja-JP",
+        "--to",
+        "zh-CN",
+        "--json"
+      ]);
+      expect(process.exitCode).toBe(1);
+    });
+
+    stdout.mockRestore();
+    stderr.mockRestore();
+  });
+
+  it("shows multi-baseline audit help while leaving mutation examples single-baseline", () => {
+    const program = createCli();
+    const auditHelp = program.commands.find((command) => command.name() === "audit")?.helpInformation() ?? "";
+    const rootHelp = program.helpInformation();
+
+    expect(auditHelp).toContain("--base-locale <locale>");
+    expect(auditHelp).toContain("can be repeated");
+    expect(rootHelp).toContain("audit [options]");
+    expect(rootHelp).toContain("sync [options]");
+  });
+
   it("recognizes npm bin symlinks as CLI entrypoints", async () => {
     const directory = await mkdtemp(join(tmpdir(), "hagi18n-cli-"));
     const target = join(directory, "dist", "cli.js");

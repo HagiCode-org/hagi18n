@@ -7,15 +7,10 @@ import {
   type ResolvedDoctorScanRule,
   type ResolveHagi18nConfigOptions
 } from "./config.js";
+import { normalizeLocaleName } from "./locale-name.js";
 
 const PLACEHOLDER_PATTERN = /{{\s*[^}]+\s*}}/g;
 const PROTECTED_TOKEN_PATTERN = /[\uE000\uE001]/u;
-const LOCALE_ALIAS_MAP = new Map([
-  ["zh", "zh-CN"],
-  ["zh-cn", "zh-CN"],
-  ["en", "en-US"],
-  ["en-us", "en-US"]
-]);
 
 export interface YamlLocaleDocument {
   absolutePath: string;
@@ -42,6 +37,11 @@ export interface LocalePlaceholderMismatch extends LocalePathIssue {
   actual: string[];
 }
 
+export interface AuditBaselineValueMatch extends LocalePathIssue {
+  baselineLocales: string[];
+  value: string;
+}
+
 export interface AuditLocaleResult {
   locale: string;
   missingFiles: string[];
@@ -51,11 +51,13 @@ export interface AuditLocaleResult {
   missingKeys: LocalePathIssue[];
   extraKeys: LocalePathIssue[];
   placeholderMismatches: LocalePlaceholderMismatch[];
+  baselineValueMatches: AuditBaselineValueMatch[];
 }
 
 export interface AuditLocaleTreeSummary {
   localesRoot: string;
   baseLocale: string;
+  baselineLocales: string[];
   locales: string[];
   allLocales: string[];
   baseFileCount: number;
@@ -110,6 +112,7 @@ export interface DoctorLocaleTreeSummary {
   repoRoot: string;
   localesRoot: string;
   baseLocale: string;
+  baselineLocales: string[];
   locales: string[];
   audit: AuditLocaleTreeSummary;
   legacyReferenceIssues: DoctorRuleIssue[];
@@ -138,19 +141,6 @@ function compareValues(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function normalizeLocaleName(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  return LOCALE_ALIAS_MAP.get(trimmed.toLowerCase()) ?? trimmed;
-}
-
 function resolveExistingLocale(
   locales: string[],
   requestedLocale: unknown
@@ -174,14 +164,30 @@ function resolveExistingLocale(
 
 function resolveTargetLocales(
   locales: string[],
-  baseLocale: string,
+  excludedLocales: readonly string[],
   targetLocales?: string[] | null,
-  includeBaseLocale = false
+  {
+    allowExcludedExplicitly = false,
+    excludeExcludedByDefault = true
+  }: {
+    allowExcludedExplicitly?: boolean;
+    excludeExcludedByDefault?: boolean;
+  } = {}
 ): string[] {
+  const excludedLocaleSet = new Set(excludedLocales);
+
   if (!targetLocales || targetLocales.length === 0) {
-    return includeBaseLocale
-      ? [...locales]
-      : locales.filter((locale) => locale !== baseLocale);
+    const defaultTargets = excludeExcludedByDefault
+      ? locales.filter((locale) => !excludedLocaleSet.has(locale))
+      : [...locales];
+
+    if (defaultTargets.length === 0 && excludeExcludedByDefault) {
+      throw new Error(
+        `No non-baseline target locales remain after excluding baseline locales: ${[...excludedLocaleSet].join(", ")}`
+      );
+    }
+
+    return defaultTargets;
   }
 
   const resolvedTargets: string[] = [];
@@ -193,7 +199,7 @@ function resolveTargetLocales(
       );
     }
 
-    if (!includeBaseLocale && resolvedLocale === baseLocale) {
+    if (!allowExcludedExplicitly && excludedLocaleSet.has(resolvedLocale)) {
       continue;
     }
 
@@ -376,7 +382,8 @@ export function createAuditResult(locale: string): AuditLocaleResult {
     parseErrors: [],
     missingKeys: [],
     extraKeys: [],
-    placeholderMismatches: []
+    placeholderMismatches: [],
+    baselineValueMatches: []
   };
 }
 
@@ -388,8 +395,89 @@ export function auditHasIssues(result: AuditLocaleResult): boolean {
     result.parseErrors.length > 0 ||
     result.missingKeys.length > 0 ||
     result.extraKeys.length > 0 ||
-    result.placeholderMismatches.length > 0
+    result.placeholderMismatches.length > 0 ||
+    result.baselineValueMatches.length > 0
   );
+}
+
+function collectStringScalars(
+  value: unknown,
+  prefix: string[] = [],
+  output = new Map<string, string>()
+): Map<string, string> {
+  if (typeof value === "string") {
+    output.set(prefix.join("."), value);
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectStringScalars(item, [...prefix, String(index)], output)
+    );
+    return output;
+  }
+
+  if (isPlainObject(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      collectStringScalars(child, [...prefix, key], output);
+    }
+  }
+
+  return output;
+}
+
+function collectBaselineValueMatches(
+  targetData: Record<string, unknown>,
+  baselineDocuments: Map<string, YamlLocaleDocument>,
+  relativeFilePath: string
+): AuditBaselineValueMatch[] {
+  const targetStrings = collectStringScalars(targetData);
+  const baselineStrings = [...baselineDocuments.entries()].map(([locale, document]) => ({
+    locale,
+    values: collectStringScalars(document.data)
+  }));
+  const matches: AuditBaselineValueMatch[] = [];
+
+  for (const [pathKey, value] of targetStrings.entries()) {
+    const matchedBaselineLocales = baselineStrings
+      .filter((baseline) => baseline.values.get(pathKey) === value)
+      .map((baseline) => baseline.locale);
+
+    if (matchedBaselineLocales.length === 0) {
+      continue;
+    }
+
+    matches.push({
+      file: relativeFilePath,
+      path: pathKey,
+      baselineLocales: matchedBaselineLocales,
+      value
+    });
+  }
+
+  return matches;
+}
+
+function resolveBaselineLocales(
+  locales: string[],
+  requestedBaselineLocales: readonly string[]
+): string[] {
+  const resolvedBaselineLocales: string[] = [];
+
+  for (const requestedBaselineLocale of requestedBaselineLocales) {
+    const resolvedBaselineLocale = resolveExistingLocale(locales, requestedBaselineLocale);
+    if (!resolvedBaselineLocale) {
+      throw new Error(
+        `Base locale '${requestedBaselineLocale}' was not found. Available locales: ${locales.join(", ")}`
+      );
+    }
+
+    if (!resolvedBaselineLocales.includes(resolvedBaselineLocale)) {
+      resolvedBaselineLocales.push(resolvedBaselineLocale);
+    }
+  }
+
+  return resolvedBaselineLocales;
 }
 
 async function resolveAuditInputs(options: LocaleToolkitOptions) {
@@ -401,27 +489,40 @@ async function resolveAuditInputs(options: LocaleToolkitOptions) {
     );
   }
 
-  const resolvedBaseLocale = resolveExistingLocale(
+  const requestedBaselineLocales =
+    options.auditBaseLocales && options.auditBaseLocales.length > 0
+      ? options.auditBaseLocales
+      : options.baseLocale
+        ? [options.baseLocale]
+        : resolvedConfig.auditBaseLocales.length > 0
+          ? resolvedConfig.auditBaseLocales
+          : [resolvedConfig.baseLocale ?? DEFAULT_BASE_LOCALE];
+  const resolvedBaselineLocales = resolveBaselineLocales(
     locales,
-    options.baseLocale ?? resolvedConfig.baseLocale ?? DEFAULT_BASE_LOCALE
+    requestedBaselineLocales
   );
-  if (!resolvedBaseLocale) {
-    throw new Error(
-      `Base locale '${options.baseLocale ?? resolvedConfig.baseLocale}' was not found. Available locales: ${locales.join(", ")}`
-    );
-  }
+  const resolvedBaseLocale = resolvedBaselineLocales[0];
 
   const selectedLocales = resolveTargetLocales(
     locales,
-    resolvedBaseLocale,
+    resolvedBaselineLocales,
     options.targetLocales ?? resolvedConfig.targetLocales,
-    true
+    {
+      allowExcludedExplicitly: false,
+      excludeExcludedByDefault: true
+    }
   );
+  if (selectedLocales.length === 0) {
+    throw new Error(
+      `No non-baseline target locales remain after excluding baseline locales: ${resolvedBaselineLocales.join(", ")}`
+    );
+  }
 
   return {
     config: resolvedConfig,
     locales,
     resolvedBaseLocale,
+    resolvedBaselineLocales,
     selectedLocales
   };
 }
@@ -429,7 +530,13 @@ async function resolveAuditInputs(options: LocaleToolkitOptions) {
 export async function auditLocaleTree(
   options: LocaleToolkitOptions = {}
 ): Promise<AuditLocaleTreeSummary> {
-  const { config, locales, resolvedBaseLocale, selectedLocales } =
+  const {
+    config,
+    locales,
+    resolvedBaseLocale,
+    resolvedBaselineLocales,
+    selectedLocales
+  } =
     await resolveAuditInputs(options);
   const baseFiles = await walkYamlFiles(
     path.join(config.localesRoot, resolvedBaseLocale)
@@ -457,6 +564,29 @@ export async function auditLocaleTree(
           locale,
           relativeFilePath
         );
+        const baselineDocuments = new Map<string, YamlLocaleDocument>();
+        for (const baselineLocale of resolvedBaselineLocales) {
+          try {
+            const baselineDocument = await readYamlLocaleFile(
+              config.localesRoot,
+              baselineLocale,
+              relativeFilePath
+            );
+            baselineDocuments.set(baselineLocale, baselineDocument);
+          } catch (error) {
+            if (
+              (error &&
+                typeof error === "object" &&
+                "code" in error &&
+                error.code === "ENOENT") ||
+              String(error).includes("ENOENT")
+            ) {
+              continue;
+            }
+
+            throw error;
+          }
+        }
 
         if (PROTECTED_TOKEN_PATTERN.test(currentDocument.raw)) {
           result.filesWithProtectedTokens.push(relativeFilePath);
@@ -488,6 +618,14 @@ export async function auditLocaleTree(
             ...differenceItem
           });
         }
+
+        result.baselineValueMatches.push(
+          ...collectBaselineValueMatches(
+            currentDocument.data,
+            baselineDocuments,
+            relativeFilePath
+          )
+        );
       } catch (error) {
         result.parseErrors.push({
           file: relativeFilePath,
@@ -502,6 +640,7 @@ export async function auditLocaleTree(
   return {
     localesRoot: config.localesRoot,
     baseLocale: resolvedBaseLocale,
+    baselineLocales: resolvedBaselineLocales,
     locales: selectedLocales,
     allLocales: locales,
     baseFileCount: baseFiles.length,
@@ -688,7 +827,7 @@ async function resolveMutationInputs(
 
   const resolvedTargets = resolveTargetLocales(
     locales,
-    resolvedBaseLocale,
+    [resolvedBaseLocale],
     options.targetLocales ?? config.targetLocales
   );
 
@@ -983,6 +1122,7 @@ export async function doctorLocaleTree(
     repoRoot: config.repoRoot,
     localesRoot: config.localesRoot,
     baseLocale: audit.baseLocale,
+    baselineLocales: audit.baselineLocales,
     locales: audit.locales,
     audit,
     legacyReferenceIssues,
@@ -1013,6 +1153,7 @@ function formatListSection<T>(
 export function formatAuditSummary(summary: AuditLocaleTreeSummary): string {
   const lines = [
     `Base locale: ${summary.baseLocale}`,
+    `Baseline locales: ${summary.baselineLocales.join(", ")}`,
     `Locales: ${summary.locales.join(", ")}`,
     `Files audited from base locale: ${summary.baseFileCount}`,
     ""
@@ -1029,6 +1170,9 @@ export function formatAuditSummary(summary: AuditLocaleTreeSummary): string {
       ...formatListSection("Extra keys", result.extraKeys, (item) => `${item.file} -> ${item.path}`),
       ...formatListSection("Placeholder mismatches", result.placeholderMismatches, (item) =>
         `${item.file} -> ${item.path} | expected ${JSON.stringify(item.expected)} | actual ${JSON.stringify(item.actual)}`
+      ),
+      ...formatListSection("Baseline value matches", result.baselineValueMatches, (item) =>
+        `${item.file} -> ${item.path} | matches [${item.baselineLocales.join(", ")}] | value ${JSON.stringify(item.value)}`
       )
     ];
 
@@ -1104,6 +1248,7 @@ export function formatMutationSummary(summary: MutationSummary): string {
 export function formatDoctorSummary(summary: DoctorLocaleTreeSummary): string {
   const lines = [
     `Base locale: ${summary.baseLocale}`,
+    `Baseline locales: ${summary.baselineLocales.join(", ")}`,
     `Locales: ${summary.locales.join(", ")}`,
     `Legacy reference issues: ${summary.totals.legacyReferenceIssues}`,
     `Affected files: ${summary.totals.affectedFiles}`,
