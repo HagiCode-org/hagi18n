@@ -78,6 +78,9 @@ Example:
 localesRoot: src/locales
 repoRoot: .
 baseLocale: en-US
+auditBaseLocales:
+  - en-US
+  - ja-JP
 targetLocales:
   - zh-CN
 doctor:
@@ -103,6 +106,8 @@ Precedence is:
 
 Relative paths in `hagi18n.yaml` are resolved from the config file directory.
 
+`baseLocale` remains the single structural baseline for mutation workflows like `sync` and `prune`. `auditBaseLocales` is audit-only, ordered, and additive: the first resolved locale becomes the structural audit baseline and any additional locales are used only for exact duplicate-value detection during `audit`, `report`, and `doctor`.
+
 ## CLI Commands
 
 ```bash
@@ -117,14 +122,16 @@ hagi18n prune
 Examples:
 
 ```bash
-hagi18n audit --locales-root src/locales --base-locale en-US
+hagi18n audit --locales-root src/locales --base-locale en-US --base-locale ja-JP
 hagi18n audit --config hagi18n.yaml --json
 hagi18n report --config hagi18n.yaml
-hagi18n doctor --config hagi18n.yaml
+hagi18n doctor --config hagi18n.yaml --base-locale en-US --base-locale zh-CN
 hagi18n sync --from en-US --to zh-CN
 hagi18n sync --from en-US --to zh-CN --write
 hagi18n prune --from en-US --to zh-CN --write
 ```
+
+`audit`, `report`, and `doctor` accept repeated `--base-locale` values. Repeated baselines are normalized, deduped, and preserved in order. `sync` and `prune` still use exactly one mutation baseline through `--from`.
 
 `sync` and `prune` are dry-run by default. Pass `--write` to mutate files.
 
@@ -134,7 +141,8 @@ hagi18n prune --from en-US --to zh-CN --write
 | --- | --- | --- |
 | `--config <path>` | all except `info` | Load defaults from a config file |
 | `--locales-root <path>` | audit, report, doctor, sync, prune | Locale root directory |
-| `--base-locale <locale>` | audit, report, doctor | Base locale for comparison |
+| `auditBaseLocales` | `hagi18n.yaml` | Ordered audit-only baselines; first resolved locale stays structural |
+| `--base-locale <locale>` | audit, report, doctor | Audit baseline locale; can be repeated |
 | `--from <locale>` | sync, prune | Base locale for mutation commands |
 | `--locale <locale>` | audit, report, doctor | Limit output to one or more locales |
 | `--to <locale>` | sync, prune | Limit mutations to one or more target locales |
@@ -151,7 +159,7 @@ hagi18n prune --from en-US --to zh-CN --write
 - `sync` and `prune` return exit code `1` only for parse or processing errors. Planned or applied mutations are reported in the summary.
 - Command parsing failures return exit code `1` from the current `commander` integration.
 
-The JSON payload is the same structured summary returned by the TypeScript API.
+The JSON payload is the same structured summary returned by the TypeScript API. For multi-baseline audits it now includes additive `baselineLocales` at the summary level and `baselineValueMatches` for each target locale result.
 
 ## TypeScript API
 
@@ -167,7 +175,7 @@ import {
 
 const audit = await auditLocaleTree({
   localesRoot: "src/locales",
-  baseLocale: "en-US"
+  auditBaseLocales: ["en-US", "ja-JP"]
 });
 
 console.log(formatAuditSummary(audit));

@@ -69,6 +69,9 @@ CLI 默认会在当前工作目录查找 `hagi18n.yaml`。也可以显式传入 
 localesRoot: src/locales
 repoRoot: .
 baseLocale: en-US
+auditBaseLocales:
+  - en-US
+  - ja-JP
 targetLocales:
   - zh-CN
 doctor:
@@ -94,6 +97,8 @@ doctor:
 
 `hagi18n.yaml` 中的相对路径会相对于配置文件所在目录解析，因此不同项目可以用它自定义 `baseLocale`、`localesRoot`、`repoRoot` 和默认目标语言目录。
 
+`baseLocale` 仍然是 `sync` / `prune` 这类变更命令使用的单一结构基线。`auditBaseLocales` 是仅用于审计的有序附加配置：第一个解析后的语言仍作为结构比较基线，其余语言只参与 `audit`、`report`、`doctor` 中的精确重复值检测。
+
 ## CLI 命令
 
 ```bash
@@ -108,14 +113,16 @@ hagi18n prune
 示例：
 
 ```bash
-hagi18n audit --locales-root src/locales --base-locale en-US
+hagi18n audit --locales-root src/locales --base-locale en-US --base-locale ja-JP
 hagi18n audit --config hagi18n.yaml --json
 hagi18n report --config hagi18n.yaml
-hagi18n doctor --config hagi18n.yaml
+hagi18n doctor --config hagi18n.yaml --base-locale en-US --base-locale zh-CN
 hagi18n sync --from en-US --to zh-CN
 hagi18n sync --from en-US --to zh-CN --write
 hagi18n prune --from en-US --to zh-CN --write
 ```
+
+`audit`、`report`、`doctor` 现在支持重复传入 `--base-locale`。这些基线会按顺序规范化并去重。`sync` 和 `prune` 仍然只通过 `--from` 使用单一变更基线。
 
 `sync` 和 `prune` 默认不会写盘，只有传入 `--write` 才会真正修改文件。
 
@@ -125,7 +132,8 @@ hagi18n prune --from en-US --to zh-CN --write
 | --- | --- | --- |
 | `--config <path>` | `info` 之外所有命令 | 加载配置文件 |
 | `--locales-root <path>` | audit, report, doctor, sync, prune | 语言包根目录 |
-| `--base-locale <locale>` | audit, report, doctor | 审计时使用的基准语言 |
+| `auditBaseLocales` | `hagi18n.yaml` | 有序的审计专用基线列表；第一个解析结果仍为结构基线 |
+| `--base-locale <locale>` | audit, report, doctor | 审计基线语言；可重复传入 |
 | `--from <locale>` | sync, prune | 变更时使用的基准语言 |
 | `--locale <locale>` | audit, report, doctor | 限定一个或多个目标语言 |
 | `--to <locale>` | sync, prune | 限定一个或多个目标语言 |
@@ -141,7 +149,7 @@ hagi18n prune --from en-US --to zh-CN --write
 - `doctor`：审计或仓库扫描存在问题时返回 `1`
 - `sync` / `prune`：只有解析或处理错误时返回 `1`，正常的预览或写入结果都会输出摘要
 
-JSON 输出与 TypeScript API 返回的结构化 summary 保持一致。
+JSON 输出与 TypeScript API 返回的结构化 summary 保持一致。多基线审计时，summary 会新增 `baselineLocales`，每个目标语言结果会新增 `baselineValueMatches`。
 
 ## TypeScript API
 
@@ -157,7 +165,7 @@ import {
 
 const audit = await auditLocaleTree({
   localesRoot: "src/locales",
-  baseLocale: "en-US"
+  auditBaseLocales: ["en-US", "ja-JP"]
 });
 
 console.log(formatAuditSummary(audit));
