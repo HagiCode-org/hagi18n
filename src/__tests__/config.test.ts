@@ -19,6 +19,7 @@ describe("hagi18n config", () => {
     expect(result.baseLocale).toBe(DEFAULT_BASE_LOCALE);
     expect(result.auditBaseLocales).toEqual([DEFAULT_BASE_LOCALE]);
     expect(result.targetLocales).toEqual([]);
+    expect(result.auditIdenticalAllowlist).toEqual({});
     expect(result.doctor.excludedDirectories).toContain("node_modules");
   });
 
@@ -50,6 +51,7 @@ doctor:
       baseLocale: "zh-CN",
       auditBaseLocales: ["en", "zh-cn"],
       targetLocales: ["en-US"],
+      auditIdenticalAllowlist: undefined,
       doctor: {
         excludedDirectories: ["custom-dist"],
         textFileExtensions: undefined,
@@ -57,6 +59,93 @@ doctor:
         allowlist: undefined,
         scanRules: undefined
       }
+    });
+  });
+
+  it("parses auditIdenticalAllowlist with forward-slash file keys and deduped key paths", async () => {
+    const project = await createTempProject("hagi18n-config-identical-parse-");
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `auditIdenticalAllowlist:
+  common.yml:
+    - brand.name
+    - nav.faq
+    - brand.name
+  pages\\home.yml:
+    - hero.cta
+`
+    );
+
+    const result = await resolveHagi18nConfig({ cwd: project.root });
+
+    expect(result.auditIdenticalAllowlist).toEqual({
+      "common.yml": ["brand.name", "nav.faq"],
+      "pages/home.yml": ["hero.cta"]
+    });
+  });
+
+  it("rejects an auditIdenticalAllowlist that is not a mapping", async () => {
+    const project = await createTempProject(
+      "hagi18n-config-identical-not-mapping-"
+    );
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `auditIdenticalAllowlist:
+  - common.yml
+`
+    );
+
+    await expect(loadHagi18nConfig({ cwd: project.root })).rejects.toThrow(
+      "auditIdenticalAllowlist must be a mapping"
+    );
+  });
+
+  it("rejects an auditIdenticalAllowlist file entry that is not an array of strings", async () => {
+    const project = await createTempProject(
+      "hagi18n-config-identical-not-array-"
+    );
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `auditIdenticalAllowlist:
+  common.yml: brand.name
+`
+    );
+
+    await expect(loadHagi18nConfig({ cwd: project.root })).rejects.toThrow(
+      "auditIdenticalAllowlist.common.yml must be an array of strings"
+    );
+  });
+
+  it("replaces the identical-value allowlist per file across config layers", async () => {
+    const project = await createTempProject("hagi18n-config-identical-merge-");
+    await writeProjectFile(
+      project.root,
+      "hagi18n.yaml",
+      `auditIdenticalAllowlist:
+  common.yml:
+    - brand.name
+  pages/home.yml:
+    - hero.cta
+  guide.yml:
+    - title
+`
+    );
+
+    const result = await resolveHagi18nConfig({
+      cwd: project.root,
+      auditIdenticalAllowlist: {
+        "common.yml": ["nav.faq"],
+        "pages/home.yml": []
+      }
+    });
+
+    expect(result.auditIdenticalAllowlist).toEqual({
+      "common.yml": ["nav.faq"],
+      "pages/home.yml": [],
+      "guide.yml": ["title"]
     });
   });
 

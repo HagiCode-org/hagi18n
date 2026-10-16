@@ -45,6 +45,7 @@ export interface Hagi18nConfig {
   baseLocale?: string;
   auditBaseLocales?: string[];
   targetLocales?: string[];
+  auditIdenticalAllowlist?: Record<string, string[]>;
   doctor?: Hagi18nDoctorConfig;
 }
 
@@ -68,6 +69,7 @@ export interface ResolvedHagi18nConfig {
   baseLocale: string;
   auditBaseLocales: string[];
   targetLocales: string[];
+  auditIdenticalAllowlist: Record<string, string[]>;
   doctor: ResolvedHagi18nDoctorConfig;
 }
 
@@ -230,6 +232,50 @@ function normalizeAllowlist(
   return output;
 }
 
+function groupIdenticalAllowlist(
+  entries: Iterable<readonly [string, readonly string[]]>
+): Record<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  for (const [rawFilePath, keyPaths] of entries) {
+    const filePath = rawFilePath.trim().replace(/\\/g, "/");
+    if (!filePath) {
+      continue;
+    }
+
+    grouped.set(
+      filePath,
+      dedupeStrings([...(grouped.get(filePath) ?? []), ...keyPaths])
+    );
+  }
+
+  return Object.fromEntries(grouped);
+}
+
+function normalizeIdenticalAllowlist(
+  value: unknown,
+  fieldName: string
+): Record<string, string[]> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(
+      `${fieldName} must be a mapping of locale-relative file paths to scalar key path arrays.`
+    );
+  }
+
+  const entries = Object.entries(value).map(([filePath, keyPaths]) => {
+    ensureString(filePath, `${fieldName} file path`);
+    return [
+      filePath,
+      ensureStringArray(keyPaths, `${fieldName}.${filePath}`) ?? []
+    ] as const;
+  });
+
+  return groupIdenticalAllowlist(entries);
+}
+
 function normalizeScanRules(
   value: unknown,
   fieldName: string
@@ -310,6 +356,10 @@ function parseConfigDocument(
       "auditBaseLocales"
     ),
     targetLocales: ensureStringArray(document.targetLocales, "targetLocales"),
+    auditIdenticalAllowlist: normalizeIdenticalAllowlist(
+      document.auditIdenticalAllowlist,
+      "auditIdenticalAllowlist"
+    ),
     doctor: parseDoctorConfig(document.doctor)
   };
 }
@@ -416,6 +466,9 @@ function resolveConfigLayer(
     baseLocale: normalizeLocaleValue(config.baseLocale),
     auditBaseLocales: normalizeLocaleValues(config.auditBaseLocales),
     targetLocales: normalizeLocaleValues(config.targetLocales),
+    auditIdenticalAllowlist: config.auditIdenticalAllowlist
+      ? groupIdenticalAllowlist(Object.entries(config.auditIdenticalAllowlist))
+      : undefined,
     doctor: {
       excludedDirectories: config.doctor?.excludedDirectories
         ? dedupeStrings(config.doctor.excludedDirectories)
@@ -455,6 +508,15 @@ function mergeAllowlists(
   }
 
   return merged;
+}
+
+function mergeIdenticalAllowlists(
+  baseAllowlist: Record<string, string[]>,
+  overrideAllowlist?: Record<string, string[]>
+): Record<string, string[]> {
+  // Replace per file: a higher-precedence list for a file wins outright,
+  // and files defined only in the lower layer keep their lists.
+  return { ...baseAllowlist, ...overrideAllowlist };
 }
 
 function mergeResolvedDoctorConfig(
@@ -497,6 +559,7 @@ function createDefaultResolvedConfig(cwd: string): ResolvedHagi18nConfig {
     baseLocale: DEFAULT_BASE_LOCALE,
     auditBaseLocales: [DEFAULT_BASE_LOCALE],
     targetLocales: [],
+    auditIdenticalAllowlist: {},
     doctor: {
       excludedDirectories: [...DEFAULT_DOCTOR_EXCLUDED_DIRECTORIES],
       textFileExtensions: [...DEFAULT_DOCTOR_TEXT_FILE_EXTENSIONS],
@@ -524,6 +587,7 @@ export async function resolveHagi18nConfig(
       baseLocale: options.baseLocale,
       auditBaseLocales: options.auditBaseLocales,
       targetLocales: options.targetLocales,
+      auditIdenticalAllowlist: options.auditIdenticalAllowlist,
       doctor: options.doctor
     },
     {
@@ -558,6 +622,13 @@ export async function resolveHagi18nConfig(
       overrideLayer.targetLocales ??
       fileLayer.targetLocales ??
       defaults.targetLocales,
+    auditIdenticalAllowlist: mergeIdenticalAllowlists(
+      mergeIdenticalAllowlists(
+        defaults.auditIdenticalAllowlist,
+        fileLayer.auditIdenticalAllowlist
+      ),
+      overrideLayer.auditIdenticalAllowlist
+    ),
     doctor: mergedDoctor
   };
 }

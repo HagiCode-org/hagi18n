@@ -429,16 +429,24 @@ function collectStringScalars(
 function collectBaselineValueMatches(
   targetData: Record<string, unknown>,
   baselineDocuments: Map<string, YamlLocaleDocument>,
-  relativeFilePath: string
+  relativeFilePath: string,
+  identicalAllowlist: Record<string, string[]>
 ): AuditBaselineValueMatch[] {
   const targetStrings = collectStringScalars(targetData);
   const baselineStrings = [...baselineDocuments.entries()].map(([locale, document]) => ({
     locale,
     values: collectStringScalars(document.data)
   }));
+  const allowedPaths = Object.hasOwn(identicalAllowlist, relativeFilePath)
+    ? new Set(identicalAllowlist[relativeFilePath])
+    : new Set<string>();
   const matches: AuditBaselineValueMatch[] = [];
 
   for (const [pathKey, value] of targetStrings.entries()) {
+    if (allowedPaths.has(pathKey)) {
+      continue;
+    }
+
     const matchedBaselineLocales = baselineStrings
       .filter((baseline) => baseline.values.get(pathKey) === value)
       .map((baseline) => baseline.locale);
@@ -623,7 +631,8 @@ export async function auditLocaleTree(
           ...collectBaselineValueMatches(
             currentDocument.data,
             baselineDocuments,
-            relativeFilePath
+            relativeFilePath,
+            config.auditIdenticalAllowlist
           )
         );
       } catch (error) {

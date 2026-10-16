@@ -436,4 +436,94 @@ doctor:
       }
     ]);
   });
+
+  describe("auditIdenticalAllowlist", () => {
+    async function createIdenticalValueFixture(prefix: string) {
+      const project = await createTempProject(prefix);
+      await writeLocaleFile(
+        project.localesRoot,
+        "en-US",
+        "common.yml",
+        `brand: "HagiCode"
+title: "Hello"
+`
+      );
+      await writeLocaleFile(
+        project.localesRoot,
+        "zh-CN",
+        "common.yml",
+        `brand: "HagiCode"
+title: "你好"
+`
+      );
+      return project;
+    }
+
+    it("suppresses an allowlisted identical value without setting hasIssues", async () => {
+      const project = await createIdenticalValueFixture(
+        "hagi18n-toolkit-identical-allow-"
+      );
+
+      const reported = await auditLocaleTree({
+        localesRoot: project.localesRoot
+      });
+      expect(reported.hasIssues).toBe(true);
+      expect(reported.results[0].baselineValueMatches).toEqual([
+        {
+          file: "common.yml",
+          path: "brand",
+          baselineLocales: ["en-US"],
+          value: "HagiCode"
+        }
+      ]);
+
+      const summary = await auditLocaleTree({
+        localesRoot: project.localesRoot,
+        auditIdenticalAllowlist: {
+          "common.yml": ["brand"]
+        }
+      });
+
+      expect(summary.results[0].baselineValueMatches).toEqual([]);
+      expect(summary.hasIssues).toBe(false);
+    });
+
+    it("keeps reporting the same key path in a different file and a different key path in the same file", async () => {
+      const project = await createIdenticalValueFixture(
+        "hagi18n-toolkit-identical-scope-"
+      );
+
+      const otherFile = await auditLocaleTree({
+        localesRoot: project.localesRoot,
+        auditIdenticalAllowlist: {
+          "pages/home.yml": ["brand"]
+        }
+      });
+      expect(otherFile.hasIssues).toBe(true);
+      expect(otherFile.results[0].baselineValueMatches).toEqual([
+        {
+          file: "common.yml",
+          path: "brand",
+          baselineLocales: ["en-US"],
+          value: "HagiCode"
+        }
+      ]);
+
+      const otherKey = await auditLocaleTree({
+        localesRoot: project.localesRoot,
+        auditIdenticalAllowlist: {
+          "common.yml": ["title"]
+        }
+      });
+      expect(otherKey.hasIssues).toBe(true);
+      expect(otherKey.results[0].baselineValueMatches).toEqual([
+        {
+          file: "common.yml",
+          path: "brand",
+          baselineLocales: ["en-US"],
+          value: "HagiCode"
+        }
+      ]);
+    });
+  });
 });
