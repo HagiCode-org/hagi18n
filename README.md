@@ -28,7 +28,7 @@ The skill includes focused references for command usage, configuration, and pack
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 24 or newer
 - npm for package management
 
 ## Installation
