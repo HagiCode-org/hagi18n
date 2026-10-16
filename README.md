@@ -83,6 +83,11 @@ auditBaseLocales:
   - ja-JP
 targetLocales:
   - zh-CN
+auditIdenticalAllowlist:
+  common.yml:
+    - brand.name
+  pages/home.yml:
+    - hero.cta
 doctor:
   excludedDirectories:
     - .git
@@ -107,6 +112,10 @@ Precedence is:
 Relative paths in `hagi18n.yaml` are resolved from the config file directory.
 
 `baseLocale` remains the single structural baseline for mutation workflows like `sync` and `prune`. `auditBaseLocales` is audit-only, ordered, and additive: the first resolved locale becomes the structural audit baseline and any additional locales are used only for exact duplicate-value detection during `audit`, `report`, and `doctor`.
+
+`auditIdenticalAllowlist` exempts specific translation keys whose value is intentionally identical to the baseline, such as a brand name or a technical identifier. Each key is a locale-relative YAML file path written with forward slashes, and each value is a list of dot-separated scalar key paths in that file. An entry is exact: it suppresses only the matching `baselineValueMatches` entry, applies to every target locale, and does not disable any other check. It does not accept globs, patterns, or value-based rules. Use it only for terms that are meant to stay identical to English.
+
+This is different from `doctor.allowlist`. `doctor.allowlist` exempts repository-scan findings by rule id and source file path, and it does not apply to audit output. Across config layers, a higher-precedence list for a file replaces the lower-precedence list for that same file, and files defined only in the lower layer keep their lists.
 
 ## CLI Commands
 
@@ -137,19 +146,20 @@ hagi18n prune --from en-US --to zh-CN --write
 
 ## Option Reference
 
-| Option | Commands | Description |
-| --- | --- | --- |
-| `--config <path>` | all except `info` | Load defaults from a config file |
-| `--locales-root <path>` | audit, report, doctor, sync, prune | Locale root directory |
-| `auditBaseLocales` | `hagi18n.yaml` | Ordered audit-only baselines; first resolved locale stays structural |
-| `--base-locale <locale>` | audit, report, doctor | Audit baseline locale; can be repeated |
-| `--from <locale>` | sync, prune | Base locale for mutation commands |
-| `--locale <locale>` | audit, report, doctor | Limit output to one or more locales |
-| `--to <locale>` | sync, prune | Limit mutations to one or more target locales |
-| `--repo-root <path>` | doctor | Repository root for repository scanning |
-| `--json` | audit, doctor, sync, prune | Print JSON instead of text |
-| `--dry-run` | sync, prune | Preview mutations without writing files |
-| `--write` | sync, prune | Apply mutations to disk |
+| Option                    | Commands                           | Description                                                                                           |
+| ------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `--config <path>`         | all except `info`                  | Load defaults from a config file                                                                      |
+| `--locales-root <path>`   | audit, report, doctor, sync, prune | Locale root directory                                                                                 |
+| `auditBaseLocales`        | `hagi18n.yaml`                     | Ordered audit-only baselines; first resolved locale stays structural                                  |
+| `auditIdenticalAllowlist` | `hagi18n.yaml`                     | Exact file and key paths whose baseline-identical values are exempt from audit `baselineValueMatches` |
+| `--base-locale <locale>`  | audit, report, doctor              | Audit baseline locale; can be repeated                                                                |
+| `--from <locale>`         | sync, prune                        | Base locale for mutation commands                                                                     |
+| `--locale <locale>`       | audit, report, doctor              | Limit output to one or more locales                                                                   |
+| `--to <locale>`           | sync, prune                        | Limit mutations to one or more target locales                                                         |
+| `--repo-root <path>`      | doctor                             | Repository root for repository scanning                                                               |
+| `--json`                  | audit, doctor, sync, prune         | Print JSON instead of text                                                                            |
+| `--dry-run`               | sync, prune                        | Preview mutations without writing files                                                               |
+| `--write`                 | sync, prune                        | Apply mutations to disk                                                                               |
 
 ## JSON Output and Exit Codes
 

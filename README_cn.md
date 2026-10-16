@@ -74,6 +74,11 @@ auditBaseLocales:
   - ja-JP
 targetLocales:
   - zh-CN
+auditIdenticalAllowlist:
+  common.yml:
+    - brand.name
+  pages/home.yml:
+    - hero.cta
 doctor:
   excludedDirectories:
     - .git
@@ -98,6 +103,10 @@ doctor:
 `hagi18n.yaml` 中的相对路径会相对于配置文件所在目录解析，因此不同项目可以用它自定义 `baseLocale`、`localesRoot`、`repoRoot` 和默认目标语言目录。
 
 `baseLocale` 仍然是 `sync` / `prune` 这类变更命令使用的单一结构基线。`auditBaseLocales` 是仅用于审计的有序附加配置：第一个解析后的语言仍作为结构比较基线，其余语言只参与 `audit`、`report`、`doctor` 中的精确重复值检测。
+
+`auditIdenticalAllowlist` 用于豁免那些有意与基线语言保持一致的译文键，例如品牌名或技术标识符。每个键是相对于语言目录的 YAML 文件路径（使用正斜杠），每个值是该文件中以点号分隔的标量键路径列表。该配置是精确匹配：它只抑制对应的 `baselineValueMatches` 条目，适用于所有目标语言，不会关闭其他任何检查，也不支持 glob、模式或基于值的规则。仅对确实应与英文保持相同的术语使用它。
+
+它与 `doctor.allowlist` 不同。`doctor.allowlist` 按规则 ID 和源文件路径豁免仓库扫描结果，并且不作用于审计输出。在配置层之间，同一文件的高优先级列表会替换低优先级列表；只在低优先级层中定义的文件则保留其列表。
 
 ## CLI 命令
 
@@ -128,19 +137,20 @@ hagi18n prune --from en-US --to zh-CN --write
 
 ## 参数说明
 
-| 参数 | 命令 | 说明 |
-| --- | --- | --- |
-| `--config <path>` | `info` 之外所有命令 | 加载配置文件 |
-| `--locales-root <path>` | audit, report, doctor, sync, prune | 语言包根目录 |
-| `auditBaseLocales` | `hagi18n.yaml` | 有序的审计专用基线列表；第一个解析结果仍为结构基线 |
-| `--base-locale <locale>` | audit, report, doctor | 审计基线语言；可重复传入 |
-| `--from <locale>` | sync, prune | 变更时使用的基准语言 |
-| `--locale <locale>` | audit, report, doctor | 限定一个或多个目标语言 |
-| `--to <locale>` | sync, prune | 限定一个或多个目标语言 |
-| `--repo-root <path>` | doctor | 仓库扫描根目录 |
-| `--json` | audit, doctor, sync, prune | 输出 JSON |
-| `--dry-run` | sync, prune | 仅预览，不写盘 |
-| `--write` | sync, prune | 真正写入文件 |
+| 参数                      | 命令                               | 说明                                                                    |
+| ------------------------- | ---------------------------------- | ----------------------------------------------------------------------- |
+| `--config <path>`         | `info` 之外所有命令                | 加载配置文件                                                            |
+| `--locales-root <path>`   | audit, report, doctor, sync, prune | 语言包根目录                                                            |
+| `auditBaseLocales`        | `hagi18n.yaml`                     | 有序的审计专用基线列表；第一个解析结果仍为结构基线                      |
+| `auditIdenticalAllowlist` | `hagi18n.yaml`                     | 精确的文件与键路径，其与基线相同的值豁免审计中的 `baselineValueMatches` |
+| `--base-locale <locale>`  | audit, report, doctor              | 审计基线语言；可重复传入                                                |
+| `--from <locale>`         | sync, prune                        | 变更时使用的基准语言                                                    |
+| `--locale <locale>`       | audit, report, doctor              | 限定一个或多个目标语言                                                  |
+| `--to <locale>`           | sync, prune                        | 限定一个或多个目标语言                                                  |
+| `--repo-root <path>`      | doctor                             | 仓库扫描根目录                                                          |
+| `--json`                  | audit, doctor, sync, prune         | 输出 JSON                                                               |
+| `--dry-run`               | sync, prune                        | 仅预览，不写盘                                                          |
+| `--write`                 | sync, prune                        | 真正写入文件                                                            |
 
 ## JSON 输出与退出码
 

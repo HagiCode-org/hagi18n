@@ -81,6 +81,24 @@ doctor:
 2. `hagi18n.yaml` or `hagi18n.yml`
 3. package defaults
 
+## Audit identical-value allowlist
+
+`auditIdenticalAllowlist` exempts exact translation values that are meant to equal the English baseline, such as brand names or technical identifiers. It maps a locale-relative YAML file path (forward slashes) to dot-separated scalar key paths:
+
+```yaml
+auditIdenticalAllowlist:
+  common.yml:
+    - brand.name
+  pages/home.yml:
+    - hero.cta
+```
+
+- It suppresses only the `baselineValueMatches` entry for the exact file and key path. It applies to every target locale and does not change any other audit check.
+- It does not accept globs, patterns, or value-based rules.
+- It is not `doctor.allowlist`. `doctor.allowlist` filters repository-scan findings by rule id and source file path and does not affect audit output.
+- Across config layers, a higher-precedence list for a file replaces the lower-precedence list for that file. Files defined only in the lower layer keep their lists.
+- When absent, the resolved allowlist is `{}` and audit output is unchanged.
+
 ## Current doctor defaults
 
 Default excluded directories:
