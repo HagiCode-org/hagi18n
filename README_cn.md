@@ -1,5 +1,11 @@
 # Hagi18n
 
+[![npm version](https://img.shields.io/npm/v/%40hagicode%2Fhagi18n?logo=npm&color=cb3837)](https://www.npmjs.com/package/@hagicode/hagi18n)
+[![npm downloads](https://img.shields.io/npm/dm/%40hagicode%2Fhagi18n?logo=npm&color=2d8cf0)](https://www.npmjs.com/package/@hagicode/hagi18n)
+[![license](https://img.shields.io/badge/license-MIT-ffd43b)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![CI](https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi18n/ci.yml?branch=main&label=CI)](https://github.com/HagiCode-org/hagi18n/actions/workflows/ci.yml)
+
 `@hagicode/hagi18n` 是一个可复用的 YAML 语言包维护工具，抽象自 `repos/web/buildTools` 中已经成熟的 Web i18n 工作流，但可以作为独立 npm 包和 CLI 使用。
 
 它提供：

@@ -3,6 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/%40hagicode%2Fhagi18n?logo=npm&color=cb3837)](https://www.npmjs.com/package/@hagicode/hagi18n)
 [![npm downloads](https://img.shields.io/npm/dm/%40hagicode%2Fhagi18n?logo=npm&color=2d8cf0)](https://www.npmjs.com/package/@hagicode/hagi18n)
 [![license](https://img.shields.io/badge/license-MIT-ffd43b)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![CI](https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi18n/ci.yml?branch=main&label=CI)](https://github.com/HagiCode-org/hagi18n/actions/workflows/ci.yml)
 
 `@hagicode/hagi18n` is a reusable YAML locale maintenance toolkit for HagiCode projects. It was abstracted from the mature Web workflow in `repos/web/buildTools`, but it runs as an independent package and CLI.
 
