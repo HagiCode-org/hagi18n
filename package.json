@@ -1,7 +1,7 @@
 {
   "name": "@hagicode/hagi18n",
   "version": "0.1.0",
-  "description": "Scoped npm package foundation for HagiCode internationalization tooling.",
+  "description": "Internationalization tooling CLI for HagiCode: audit, sync and manage locale resources",
   "license": "MIT",
   "homepage": "https://github.com/HagiCode-org/hagi18n#readme",
   "bugs": {
@@ -43,11 +43,20 @@
     "test:watch": "vitest"
   },
   "keywords": [
+    "hagicode",
+    "hagicode-org",
     "hagi18n",
     "i18n",
+    "internationalization",
     "localization",
+    "l10n",
+    "translation",
     "cli"
   ],
+  "author": {
+    "name": "HagiCode",
+    "url": "https://github.com/HagiCode-org"
+  },
   "engines": {
     "node": ">=24.0.0"
   },
