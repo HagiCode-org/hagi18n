@@ -20,6 +20,7 @@ npm run build
 npm test
 npm run lint
 npm run format:check
+npm run dev -- <command>   # run the CLI from source via tsx (src/cli.ts)
 npm run pack:check    # verify npm tarball contents (also run in CI and publish)
 ```
 
