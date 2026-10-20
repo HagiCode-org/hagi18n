@@ -28,7 +28,7 @@ Requires Node.js 24 or newer. CI runs `npm test`, `npm run build`, and `npm run 
 
 ## Key Paths
 
-- `src/`: CLI (`cli.ts`) and library source (`config.ts`, `locale-toolkit.ts`); tests in `src/__tests__/`
+- `src/`: CLI (`cli.ts`) and library source (`index.ts` public exports, `config.ts`, `locale-toolkit.ts`, `locale-name.ts`, `version.ts`); tests in `src/__tests__/`
 - `scripts/`: npm publish helpers (`verify-package.mjs`, `prepare-dev-version.mjs`, `verify-release-version.mjs`, `verify-npm-publish-prereqs.mjs`)
 - `skills/hagi18n/SKILL.md`: AI-oriented skill documentation
 - `dist/`: published build output
