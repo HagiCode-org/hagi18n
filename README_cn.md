@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![CI](https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi18n/ci.yml?branch=main&label=CI)](https://github.com/HagiCode-org/hagi18n/actions/workflows/ci.yml)
 
-`@hagicode/hagi18n` 是一个可复用的 YAML 语言包维护工具，抽象自 `repos/web/buildTools` 中已经成熟的 Web i18n 工作流，但可以作为独立 npm 包和 CLI 使用。
+`@hagicode/hagi18n` 是一个可复用的 YAML 语言包维护工具，可作为独立 npm 包和 CLI 使用。
 
 它提供：
 
@@ -23,7 +23,7 @@
 
 - 执行或解释 `hagi18n audit`、`doctor`、`sync`、`prune`
 - 新增或审查 `hagi18n.yaml`
-- 检查或修改 `repos/hagi18n` 内源码
+- 检查或修改该包的源码
 - 在消费方仓库中验证语言包维护流程
 
 skill 内还附带了命令使用、配置结构和包开发流程的拆分参考文档。
@@ -195,21 +195,6 @@ console.log(formatAuditSummary(audit));
 - 文本格式化函数：`formatAuditSummary`、`formatDoctorSummary`、`formatMutationSummary`
 - 元数据函数：`getPackageMetadata`、`createRuntimeInfo`
 
-## 与 Web 参考实现的对应关系
+## 许可证
 
-此包保留了 Web 项目的维护模型：
-
-- `repos/web/buildTools/lib/i18nLocaleToolkit.mjs` -> `src/locale-toolkit.ts`
-- `repos/web/buildTools/i18n-locale-cli.mjs` -> `src/cli.ts`
-
-也就是说，这次抽象保留了 Web 的参考行为，但不会要求 `repos/web` 立即修改运行时代码。
-
-## 开发
-
-在 `repos/hagi18n/` 目录执行：
-
-```bash
-npm install
-npm test
-npm run build
-```
+MIT。参见 [LICENSE](./LICENSE)。

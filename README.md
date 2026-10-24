@@ -6,7 +6,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![CI](https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi18n/ci.yml?branch=main&label=CI)](https://github.com/HagiCode-org/hagi18n/actions/workflows/ci.yml)
 
-`@hagicode/hagi18n` is a reusable YAML locale maintenance toolkit for HagiCode projects. It was abstracted from the mature Web workflow in `repos/web/buildTools`, but it runs as an independent package and CLI.
+`@hagicode/hagi18n` is a reusable YAML locale maintenance toolkit for HagiCode projects. It runs as an independent package and CLI.
 
 It supports:
 
@@ -23,7 +23,7 @@ Use it when an AI agent needs to:
 
 - run or explain `hagi18n audit`, `doctor`, `sync`, or `prune`
 - add or review a `hagi18n.yaml` file
-- inspect or modify the source in `repos/hagi18n`
+- inspect or modify the package source
 - validate locale maintenance workflows against a consumer repository
 
 The skill includes focused references for command usage, configuration, and package development.
@@ -200,25 +200,6 @@ Main exports include:
 - workflows such as `auditLocaleTree`, `doctorLocaleTree`, `syncLocaleTree`, and `pruneLocaleTree`
 - text formatters such as `formatAuditSummary`, `formatDoctorSummary`, and `formatMutationSummary`
 - package metadata helpers such as `getPackageMetadata` and `createRuntimeInfo`
-
-## Web Reference Mapping
-
-This package preserves the maintenance model from the Web repository:
-
-- `repos/web/buildTools/lib/i18nLocaleToolkit.mjs` -> `src/locale-toolkit.ts`
-- `repos/web/buildTools/i18n-locale-cli.mjs` -> `src/cli.ts`
-
-The Web project remains the behavior reference, but it does not need runtime changes to use this package later.
-
-## Development
-
-Run commands from `repos/hagi18n/`:
-
-```bash
-npm install
-npm test
-npm run build
-```
 
 ## License
 

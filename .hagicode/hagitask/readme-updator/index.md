@@ -5,19 +5,22 @@ languages:
   - en-US
   - zh-CN
 sourceLanguage: en-US
-style: technical
+style: product
 ---
 
 # README requirements
 
-## Audience and focus
+## Product focus
 
-- Address developers who use `@hagicode/hagi18n` to audit, sync and prune YAML locale resources in HagiCode projects.
+- Introduce `@hagicode/hagi18n` as a CLI and TypeScript package that keeps YAML locale resources consistent across HagiCode projects: it audits locale trees, reports and diagnoses problems, and safely syncs and prunes locale files.
+- Address developers who add the package to a project to maintain its translations; this repository is itself a developer-facing tool, so usage-level detail belongs in the README.
+- Lead with the value: finding missing, extra and mismatched locale keys and fixing them with dry-run-first commands. Open with what the tool does, then installation and usage.
 
 ## Required content
 
-- Keep AI skill, requirements, installation, YAML locale layout, configuration (`hagi18n.yaml`), CLI commands, option reference, JSON output and exit codes, TypeScript API, web reference mapping, development and license.
-- Command names and options must match `src/`.
+- Keep the badges, the one-paragraph description with the list of capabilities, requirements, installation and the installed `hagi18n` command.
+- Keep the YAML locale layout the tool expects, the `hagi18n.yaml` configuration, the CLI commands with examples, the option reference, JSON output and exit codes, the TypeScript API, the AI skill pointer and the license statement.
+- Command names and options must match `src/`; the license statement must match `LICENSE` and `package.json`.
 
 ## README languages
 
@@ -27,3 +30,4 @@ style: technical
 ## Exclusions
 
 - Exclude npm tokens, secret values, internal hosts, machine-specific paths and private links.
+- Keep repository maintenance instructions out of the README: the Web reference mapping, internal architecture, CI, build internals and the development workflow.
