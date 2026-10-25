@@ -29,7 +29,7 @@
     "README_cn.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -p tsconfig.json",
     "clean": "rm -rf dist .vitest-temp .tmp coverage",
     "dev": "tsx src/cli.ts",
     "format": "prettier --write .",
