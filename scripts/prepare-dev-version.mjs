@@ -39,6 +39,10 @@ if (shortSha.length === 0) {
   );
 }
 
+// SemVer reads an all-digit identifier as a number (and refuses one with a leading zero), so a sha made only of
+// digits gets a `g` prefix, as in `git describe`. A sha with a letter in it is already a valid identifier.
+const semverSafeSha = /^\d+$/.test(shortSha) ? `g${shortSha}` : shortSha;
+
 process.stdout.write(
-  `${baseVersion}-dev.${runNumber}.${runAttempt}.${shortSha}`
+  `${baseVersion}-dev.${runNumber}.${runAttempt}.${semverSafeSha}`
 );
