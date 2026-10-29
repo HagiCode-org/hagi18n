@@ -40,7 +40,9 @@ function getNpmInvocation() {
 const npmInvocation = getNpmInvocation();
 const result = spawnSync(npmInvocation.command, npmInvocation.args, {
   cwd: repoRoot,
-  encoding: "utf8"
+  encoding: "utf8",
+  // Node refuses to spawn a .cmd shim without a shell (EINVAL on Windows).
+  shell: process.platform === "win32"
 });
 
 if (result.status !== 0) {
