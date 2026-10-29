@@ -22,7 +22,9 @@ if (!fs.existsSync(resolvedBinPath)) {
 function getNpmInvocation() {
   const npmExecPath = process.env.npm_execpath;
 
-  if (npmExecPath) {
+  // Only npm's own JS entry point can be run through node. Under pnpm 12 (and yarn) npm_execpath
+  // points at the package manager itself, which may be a native binary, so fall back to npm.
+  if (npmExecPath && /npm-cli\.[cm]?js$/.test(npmExecPath)) {
     return {
       command: process.execPath,
       args: [npmExecPath, "pack", "--dry-run", "--json"]
@@ -57,7 +59,11 @@ if (result.status !== 0) {
   );
 }
 
-const [packSummary] = JSON.parse(result.stdout);
+const packOutput = JSON.parse(result.stdout);
+// npm <=11 prints an array of summaries; npm 12 prints an object keyed by package name.
+const packSummary = Array.isArray(packOutput)
+  ? packOutput[0]
+  : (packOutput.files ? packOutput : Object.values(packOutput)[0]);
 const packedFiles = new Set((packSummary?.files ?? []).map((file) => file.path));
 const requiredFiles = [
   "package.json",
