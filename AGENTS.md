@@ -15,16 +15,16 @@ Run commands from `repos/hagi18n/`.
 ## Key Commands
 
 ```bash
-npm install
-npm run build
-npm test
-npm run lint
-npm run format:check
-npm run dev -- <command>   # run the CLI from source via tsx (src/cli.ts)
-npm run pack:check    # verify npm tarball contents (also run in CI and publish)
+pnpm install
+pnpm run build
+pnpm test
+pnpm run lint
+pnpm run format:check
+pnpm run dev <command>   # run the CLI from source via tsx (src/cli.ts)
+pnpm run pack:check    # verify npm tarball contents (also run in CI and publish)
 ```
 
-Requires Node.js 24 or newer. CI runs `npm test`, `npm run build`, and `npm run pack:check` on Linux, Windows, and macOS.
+Requires Node.js 24 or newer. CI runs `pnpm test`, `pnpm run build`, and `pnpm run pack:check` on Linux, Windows, and macOS.
 
 ## Key Paths
 
@@ -46,3 +46,10 @@ Requires Node.js 24 or newer. CI runs `npm test`, `npm run build`, and `npm run 
 
 - `README.md`
 - `skills/hagi18n/SKILL.md`
+
+## Package management
+
+- The repository uses pnpm, pinned in `package.json` `packageManager`. Run `corepack enable` once, then `pnpm install`. `pnpm-lock.yaml` is the only lockfile; do not commit `package-lock.json`.
+- Settings live in `pnpm-workspace.yaml`. `allowBuilds` lists the dependencies whose install scripts may run (reviewed individually, `false` means reviewed and denied); review any new dependency that has an install script and add it there.
+- A local registry mirror belongs in `~/.npmrc` only. Never commit a `registry=` line or a mirror URL; `pnpm run check:registry` (also run in CI) fails on any non-`registry.npmjs.org` `tarball` in the lockfile and on mirror hosts in tracked files.
+- Undeclared imports fail under pnpm's strict layout: declare the package instead of hoisting it.

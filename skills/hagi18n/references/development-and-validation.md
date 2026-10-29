@@ -5,18 +5,18 @@
 Run these from `repos/hagi18n`:
 
 ```bash
-npm test
-npm run build
-npm run lint
-npm run pack:check
+pnpm test
+pnpm run build
+pnpm run lint
+pnpm run pack:check
 ```
 
 Useful package maintenance helpers:
 
 ```bash
-npm run publish:check-prereqs
-npm run publish:prepare-dev-version
-npm run publish:verify-release
+pnpm run publish:check-prereqs
+pnpm run publish:prepare-dev-version
+pnpm run publish:verify-release
 ```
 
 ## Source map
@@ -36,9 +36,9 @@ npm run publish:verify-release
 ## Validation expectations after edits
 
 - Run the narrowest relevant tests first if the change is isolated.
-- Run `npm test` after source or skill-related packaging changes.
-- Run `npm run build` after TypeScript or export changes.
-- Run `npm run pack:check` when package contents or publish-facing files change.
+- Run `pnpm test` after source or skill-related packaging changes.
+- Run `pnpm run build` after TypeScript or export changes.
+- Run `pnpm run pack:check` when package contents or publish-facing files change.
 
 ## Behavior references
 

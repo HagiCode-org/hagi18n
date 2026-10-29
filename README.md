@@ -31,7 +31,7 @@ The skill includes focused references for command usage, configuration, and pack
 ## Requirements
 
 - Node.js 24 or newer
-- npm for package management
+- pnpm for package management
 
 ## Installation
 

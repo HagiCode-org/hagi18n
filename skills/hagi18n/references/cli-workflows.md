@@ -29,7 +29,7 @@ For development against the local source tree in `repos/hagi18n`:
 
 ```bash
 cd repos/hagi18n
-npm run dev -- audit --locales-root ../some-app/src/locales --base-locale en-US
+pnpm run dev audit --locales-root ../some-app/src/locales --base-locale en-US
 ```
 
 ## Command intent
