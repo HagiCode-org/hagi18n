@@ -40,7 +40,9 @@
     "publish:prepare-dev-version": "node scripts/prepare-dev-version.mjs",
     "publish:verify-release": "node scripts/verify-release-version.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:registry": "node scripts/check-registry-neutrality.mjs",
+    "test:registry": "node --test scripts/check-registry-neutrality.node-test.mjs"
   },
   "keywords": [
     "hagicode",
@@ -79,5 +81,6 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.46.2",
     "vitest": "^5.0.5"
-  }
+  },
+  "packageManager": "pnpm@12.16.1"
 }
