@@ -44,7 +44,7 @@ pnpm run publish:verify-release
 
 The package preserves the Web maintenance model:
 
-- `repos/web/buildTools/lib/i18nLocaleToolkit.mjs` -> `src/locale-toolkit.ts`
-- `repos/web/buildTools/i18n-locale-cli.mjs` -> `src/cli.ts`
+- `repos/web/web/buildTools/lib/i18nLocaleToolkit.mjs` -> `src/locale-toolkit.ts`
+- `repos/web/web/buildTools/i18n-locale-cli.mjs` -> `src/cli.ts`
 
 Use the local source tree as the writable source of truth and treat the Web mapping as historical context only.
