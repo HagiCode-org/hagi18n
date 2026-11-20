@@ -1,5 +1,7 @@
 # CLI Workflows
 
+Read this when running or explaining a command. For setup, see [`install.md`](install.md).
+
 ## Use cases
 
 Use `@hagicode/hagi18n` when a repository stores locale files as YAML trees and needs a maintenance workflow instead of ad hoc scripts.
@@ -37,7 +39,7 @@ pnpm run dev audit --locales-root ../some-app/src/locales --base-locale en-US
 - `info`: print package metadata and foundation status
 - `audit`: compare locale files against a base locale and report drift
 - `report`: run the audit flow and always print JSON
-- `doctor`: run the audit flow and scan text files for legacy locale references
+- `doctor`: run the audit flow and scan text files for legacy locale references (details in [`doctor.md`](doctor.md))
 - `sync`: add missing files and keys from the base locale
 - `prune`: remove files and keys that no longer exist in the base locale
 
@@ -60,3 +62,8 @@ pnpm run dev audit --locales-root ../some-app/src/locales --base-locale en-US
 - The toolkit expects a base locale such as `en-US`.
 - Locale aliases are accepted, but output and new config should prefer canonical locale names.
 - JSON mode is appropriate when another tool or agent needs machine-readable results.
+
+## Next
+
+- Config file and flag precedence -> [`config.md`](config.md)
+- Locale tree shape -> [`layout.md`](layout.md)

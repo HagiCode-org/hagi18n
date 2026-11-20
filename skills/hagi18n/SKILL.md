@@ -5,35 +5,30 @@ description: Use when the user wants to audit, doctor, sync, prune, configure, o
 
 # Hagi18n
 
-Use this skill when the task is to:
-
-- run or explain the `hagi18n` CLI
-- add, review, or fix a `hagi18n.yaml` configuration
-- inspect locale drift, placeholder mismatches, or legacy locale references
-- modify `@hagicode/hagi18n` source, tests, or release packaging in `repos/hagi18n`
+`@hagicode/hagi18n` is the YAML locale maintenance CLI: `audit`, `report`, `doctor`, `sync`, `prune`, `info`. Run it with `npx @hagicode/hagi18n <command>` or the installed `hagi18n` binary.
 
 ## Core rules
 
-- Prefer package-first usage for consumer repositories: `npx @hagicode/hagi18n <command>` or the installed `hagi18n` binary.
-- Run build, test, and development commands with the working directory set to `repos/hagi18n`.
-- `sync` and `prune` are dry-run by default. Only add `--write` when the user explicitly wants file mutations.
-- Prefer canonical locale names such as `en-US` and `zh-CN`; aliases like `en`, `en-us`, `zh`, and `zh-cn` are normalized by the toolkit, but new code and docs should use canonical names.
-- Use this package for locale maintenance and repository hygiene. Do not treat it as a runtime translation loader or UI i18n framework.
+- `sync` and `prune` are dry-run by default. Add `--write` only when the user explicitly wants files changed.
+- Use canonical locale names (`en-US`, `zh-CN`) in new code, config, and docs.
+- This is locale maintenance and repository hygiene, not a runtime translation loader or UI i18n framework.
+- Run build, test, and dev commands from `repos/hagi18n`.
 
-## Choose the workflow
+## Read only what the task needs
 
-1. Command usage in a consumer repository -> read [`references/cli-workflows.md`](references/cli-workflows.md)
-2. Locale layout, config shape, or doctor scan behavior -> read [`references/config-and-layout.md`](references/config-and-layout.md)
-3. Source changes, tests, or package validation in `repos/hagi18n` -> read [`references/development-and-validation.md`](references/development-and-validation.md)
+| Task | Read |
+|---|---|
+| CLI not installed, or version / Node requirement in doubt | [`references/install.md`](references/install.md) |
+| Run or explain a command, flags, exit codes | [`references/cli-workflows.md`](references/cli-workflows.md) |
+| Write or fix `hagi18n.yaml`, precedence, identical-value allowlist | [`references/config.md`](references/config.md) |
+| Locale tree shape, supported YAML, aliases | [`references/layout.md`](references/layout.md) |
+| `doctor` findings, scan defaults, `doctor.allowlist` | [`references/doctor.md`](references/doctor.md) |
+| Change source, tests, or packaging in `repos/hagi18n` | [`references/development-and-validation.md`](references/development-and-validation.md) |
+
+Start with the single row that matches. Each reference ends with a short "Next" list; follow it only if the task continues there.
 
 ## Source of truth
 
-- CLI entry point: `src/cli.ts`
-- Config loading and default rules: `src/config.ts`
-- Audit, doctor, sync, and prune behavior: `src/locale-toolkit.ts`
-
-## References
-
-- [`references/cli-workflows.md`](references/cli-workflows.md) - package usage, command intent, exit code expectations, and mutation safety
-- [`references/config-and-layout.md`](references/config-and-layout.md) - supported locale tree layout, `hagi18n.yaml` shape, aliases, and doctor defaults
-- [`references/development-and-validation.md`](references/development-and-validation.md) - repository-local scripts, source map, and expected validation after edits
+- `src/cli.ts`: command registration and exit codes
+- `src/config.ts`: config loading and default rules
+- `src/locale-toolkit.ts`: audit, doctor, sync, and prune behavior
