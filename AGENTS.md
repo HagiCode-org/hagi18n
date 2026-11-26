@@ -22,14 +22,15 @@ pnpm run lint
 pnpm run format:check
 pnpm run dev <command>   # run the CLI from source via tsx (src/cli.ts)
 pnpm run pack:check    # verify npm tarball contents (also run in CI and publish)
+pnpm run check:registry  # fail on non-npmjs tarballs or mirror hosts (also run in CI and publish)
 ```
 
-Requires Node.js 24 or newer. CI runs `pnpm test`, `pnpm run build`, and `pnpm run pack:check` on Linux, Windows, and macOS.
+Requires Node.js 24 or newer. CI runs `pnpm run check:registry`, `pnpm test`, `pnpm run build`, and `pnpm run pack:check` on Linux, Windows, and macOS.
 
 ## Key Paths
 
 - `src/`: CLI (`cli.ts`) and library source (`index.ts` public exports, `config.ts`, `locale-toolkit.ts`, `locale-name.ts`, `version.ts`); tests in `src/__tests__/`
-- `scripts/`: npm publish helpers (`verify-package.mjs`, `prepare-dev-version.mjs`, `verify-release-version.mjs`, `verify-npm-publish-prereqs.mjs`)
+- `scripts/`: npm publish helpers (`verify-package.mjs`, `prepare-dev-version.mjs`, `verify-release-version.mjs`, `verify-npm-publish-prereqs.mjs`) and the registry mirror guard `check-registry-neutrality.mjs` (`check:registry`)
 - `skills/hagi18n/SKILL.md`: AI-oriented skill documentation
 - `dist/`: published build output
 
@@ -38,13 +39,14 @@ Requires Node.js 24 or newer. CI runs `pnpm test`, `pnpm run build`, and `pnpm r
 - Treat this as a published npm package; avoid breaking changes without version bumps.
 - Keep the `hagi18n audit | sync | prune | doctor | report` command surface stable (plus the `info` runtime-info command).
 - Publishing is workflow-driven (`npm-publish.yml`): every push to `main` publishes a `dev` dist-tag prerelease, a published non-prerelease GitHub release publishes `latest` after the tag matches the package version; do not publish by hand. Release drafts come from `release-draft-action.yml`.
-- `hagi18n.yaml` options (`auditBaseLocales`, `auditIdenticalAllowlist`, `doctor.*`) are documented in `README.md`; keep the README option reference in sync when changing config behavior.
+- `hagi18n.yaml` options (`auditBaseLocales`, `auditIdenticalAllowlist`, `doctor.*`) are documented in `README.md` and `README_cn.md`; keep both option references in sync when changing config behavior.
 - For AI-oriented i18n guidance, consult `skills/hagi18n/SKILL.md`.
 - If changing locale file conventions, update all consuming HagiCode repos.
 
 ## References
 
 - `README.md`
+- `README_cn.md`
 - `skills/hagi18n/SKILL.md`
 
 ## Package management
